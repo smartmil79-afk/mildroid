@@ -116,8 +116,52 @@ fn parse_storage_health(output: &str) -> (Option<f32>, Option<f32>) {
     )
 }
 
+static ADB_PATH_OVERRIDE: std::sync::OnceLock<std::sync::Mutex<Option<String>>> = std::sync::OnceLock::new();
+
+pub fn set_adb_path(path: Option<String>) -> Result<String, String> {
+    let selected = match path {
+        Some(value) if !value.trim().is_empty() => {
+            let candidate = std::path::PathBuf::from(value.trim().trim_matches('"'));
+            if !candidate.is_file() { return Err("The selected adb.exe file does not exist.".into()); }
+            let output = Command::new(&candidate).arg("version").output().map_err(|e| e.to_string())?;
+            if !output.status.success() { return Err("The selected file is not a working ADB executable.".into()); }
+            Some(candidate.to_string_lossy().into_owned())
+        }
+        _ => None,
+    };
+    let lock = ADB_PATH_OVERRIDE.get_or_init(|| std::sync::Mutex::new(None));
+    *lock.lock().map_err(|_| "ADB path configuration unavailable.".to_string())? = selected.clone();
+    Ok(selected.unwrap_or_else(|| "Automatic detection".into()))
+}
+
 fn adb_executable() -> String {
-    std::env::var("MIFASK_ADB_PATH").unwrap_or_else(|_| "adb".to_string())
+    if let Some(lock) = ADB_PATH_OVERRIDE.get() {
+        if let Ok(value) = lock.lock() {
+            if let Some(path) = value.as_ref() { return path.clone(); }
+        }
+    }
+    use std::path::PathBuf;
+    if let Ok(value) = std::env::var("MIFASK_ADB_PATH") {
+        let path = PathBuf::from(value.trim().trim_matches('"'));
+        if path.is_file() { return path.to_string_lossy().into_owned(); }
+    }
+    let executable = if cfg!(windows) { "adb.exe" } else { "adb" };
+    let mut candidates = Vec::new();
+    if cfg!(windows) {
+        candidates.push(PathBuf::from("C:/platform-tools/adb.exe"));
+        if let Ok(local) = std::env::var("LOCALAPPDATA") {
+            candidates.push(PathBuf::from(local).join("Android/Sdk/platform-tools/adb.exe"));
+        }
+    }
+    for variable in ["ANDROID_HOME", "ANDROID_SDK_ROOT"] {
+        if let Ok(root) = std::env::var(variable) {
+            candidates.push(PathBuf::from(root).join("platform-tools").join(executable));
+        }
+    }
+    if let Some(path) = candidates.into_iter().find(|path| path.is_file()) {
+        return path.to_string_lossy().into_owned();
+    }
+    "adb".to_string()
 }
 
 fn adb_for(serial: &str, args: &[&str]) -> Result<String, String> {
