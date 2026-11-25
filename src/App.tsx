@@ -205,7 +205,7 @@ function App() {
                 <div><h2>Device Health &amp; Diagnostics</h2><p>Read-only battery, Android version and storage information from the selected phone.</p></div>
                 <div className="inventory-actions">
                   {connected.length > 1 && <select className="device-picker" aria-label="Choose device for diagnostics" value={selectedDevice?.serial ?? ''} onChange={e => setSelectedSerial(e.target.value)}><option value="" disabled>Select device</option>{connected.map(device => <option key={device.serial} value={device.serial}>{device.model || device.serial} · {device.serial}</option>)}</select>}
-                  <div className="inventory-actions"><button className="subtle-button" onClick={exportHealthReport} disabled={!health}>Export report</button><button className="primary-button" onClick={() => void loadHealth()} disabled={healthBusy || !selectedDevice}>
+                  <button className="subtle-button" onClick={exportHealthReport} disabled={!health}>Export report</button><button className="primary-button" onClick={() => void loadHealth()} disabled={healthBusy || !selectedDevice}>
                     <RefreshCw size={15} className={healthBusy ? 'spin' : ''} />{healthBusy ? 'Checking…' : 'Run diagnostics'}
                   </button>
                 </div>
