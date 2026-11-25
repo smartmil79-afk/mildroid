@@ -5,8 +5,8 @@ import {
   ListChecks, Moon, RefreshCw, Settings, ShieldCheck, Smartphone, Sun,
   Usb, CircleHelp, CheckCircle2
 } from 'lucide-react';
-import { scanDevices, scanInstalledApps } from './services/deviceService';
-import type { AndroidDevice, DeviceScan, AppInventory } from './types';
+import { scanDevices, scanInstalledApps, scanDeviceHealth } from './services/deviceService';
+import type { AndroidDevice, DeviceScan, AppInventory, DeviceHealth } from './types';
 
 type Theme = 'dark' | 'light';
 const nav = [
@@ -34,6 +34,8 @@ function App() {
   const [appFilter, setAppFilter] = useState<'all' | 'user' | 'system' | 'unknown'>('all');
   const [appSearch, setAppSearch] = useState('');
   const [selectedSerial, setSelectedSerial] = useState('');
+  const [health, setHealth] = useState<DeviceHealth | null>(null);
+  const [healthBusy, setHealthBusy] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('mifask-theme', theme);
@@ -68,6 +70,16 @@ function App() {
       setSelectedSerial(connected[0]?.serial ?? '');
     }
   }, [devices, selectedSerial]);
+
+  const loadHealth = useCallback(async () => {
+    if (!selectedDevice) { setError('Connect and authorise an Android device before running diagnostics.'); return; }
+    setHealthBusy(true); setError('');
+    try { setHealth(await scanDeviceHealth(selectedDevice.serial)); }
+    catch (e) { setError(`Device diagnostics failed: ${String(e)}`); }
+    finally { setHealthBusy(false); }
+  }, [selectedDevice]);
+
+  useEffect(() => { setHealth(null); }, [selectedSerial]);
 
   const loadApps = useCallback(async () => {
     const target = selectedDevice;
@@ -155,6 +167,34 @@ function App() {
           </div>
 
           {error && <div className="notice"><CircleHelp size={18} /><div><b>ADB connection needs attention</b><p>{error}</p><small>Install Android Platform Tools, connect a phone by USB, enable USB debugging and approve this computer.</small></div></div>}
+
+          {(active === 'Dashboard' || active === 'Connected devices') && (
+            <section className="health-panel">
+              <div className="section-row">
+                <div><h2>Device Health &amp; Diagnostics</h2><p>Read-only battery, Android version and storage information from the selected phone.</p></div>
+                <div className="inventory-actions">
+                  {connected.length > 1 && <select className="device-picker" aria-label="Choose device for diagnostics" value={selectedDevice?.serial ?? ''} onChange={e => setSelectedSerial(e.target.value)}><option value="" disabled>Select device</option>{connected.map(device => <option key={device.serial} value={device.serial}>{device.model || device.serial} · {device.serial}</option>)}</select>}
+                  <button className="primary-button" onClick={() => void loadHealth()} disabled={healthBusy || !selectedDevice}>
+                    <RefreshCw size={15} className={healthBusy ? 'spin' : ''} />{healthBusy ? 'Checking…' : 'Run diagnostics'}
+                  </button>
+                </div>
+              </div>
+              {!health ? (
+                <div className="health-empty"><Smartphone size={19}/><span>{selectedDevice ? 'Run diagnostics to inspect this device.' : 'Connect and authorise a phone to view device health.'}</span></div>
+              ) : (
+                <>
+                  <div className="health-device-line"><b>{health.manufacturer || ''} {health.model || 'Android device'}</b><span>Android {health.androidVersion || 'Unknown'} · {health.deviceSerial}</span></div>
+                  <div className="health-metrics">
+                    <div><span className="health-icon"><Activity size={17}/></span><small>Battery level</small><strong>{health.batteryLevel == null ? '—' : `${health.batteryLevel}%`}</strong><em>{health.batteryStatus || 'Status unavailable'}</em></div>
+                    <div><span className="health-icon"><Activity size={17}/></span><small>Battery temperature</small><strong>{health.batteryTemperatureC == null ? '—' : `${health.batteryTemperatureC.toFixed(1)}°C`}</strong><em>Device-reported reading</em></div>
+                    <div><span className="health-icon"><HardDrive size={17}/></span><small>Storage free</small><strong>{health.storageFreeGb == null ? '—' : `${health.storageFreeGb.toFixed(1)} GB`}</strong><em>{health.storageTotalGb == null ? 'Total unavailable' : `of ${health.storageTotalGb.toFixed(1)} GB total`}</em></div>
+                    <div><span className="health-icon"><ShieldCheck size={17}/></span><small>Security patch</small><strong className="patch-value">{health.securityPatch || 'Unknown'}</strong><em>Reported by Android</em></div>
+                  </div>
+                  <p className="health-footnote">Diagnostics are read-only. Battery temperature and storage figures are reported by Android and may vary by device. Last scan: {new Date(Number(health.scannedAt) * 1000).toLocaleString()}.</p>
+                </>
+              )}
+            </section>
+          )}
 
           {active === 'App manager' && (
             <div className="inventory-panel">
