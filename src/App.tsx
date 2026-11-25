@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   Activity, AppWindow, Clock3, Database, HardDrive, LayoutDashboard,
   ListChecks, Moon, RefreshCw, Settings, ShieldCheck, Smartphone, Sun,
-  Usb, CircleHelp, CheckCircle2, History, Download, Trash2
+  Usb, CircleHelp, CheckCircle2, History, Download, Trash2, FileJson, Upload
 } from 'lucide-react';
 import { scanDevices, scanInstalledApps, scanDeviceHealth } from './services/deviceService';
 import type { AndroidDevice, DeviceScan, AppInventory, DeviceHealth } from './types';
@@ -46,6 +46,36 @@ function App() {
   const recordActivity = useCallback((action: string, detail: string, status: ActivityEntry['status'] = 'success') => {
     setActivity(previous => [{ id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, timestamp: Date.now(), action, detail, status }, ...previous].slice(0, 100));
   }, []);
+  const backupInputRef = useRef<HTMLInputElement>(null);
+  const [backupMessage, setBackupMessage] = useState('');
+  const exportSettingsBackup = useCallback(() => {
+    const payload = { format: 'mifask-android-cleaner-backup', version: 1, createdAt: new Date().toISOString(), settings: { theme }, activity };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a'); anchor.href = url; anchor.download = `mifask-settings-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
+    recordActivity('Settings backup', 'Exported local preferences and activity history');
+    setBackupMessage('Backup file created. It contains app preferences and activity history only.');
+  }, [theme, activity, recordActivity]);
+  const importSettingsBackup = useCallback(async (file?: File) => {
+    if (!file) return;
+    try {
+      const parsed: unknown = JSON.parse(await file.text());
+      if (!parsed || typeof parsed !== 'object') throw new Error('The selected file is not a valid backup.');
+      const data = parsed as { format?: unknown; version?: unknown; settings?: { theme?: unknown; activity?: unknown } };
+      if (data.format !== 'mifask-android-cleaner-backup' || data.version !== 1 || !data.settings || !Array.isArray(data.settings.activity)) throw new Error('Unsupported backup format or version.');
+      if (data.settings.theme !== 'dark' && data.settings.theme !== 'light') throw new Error('Backup theme setting is invalid.');
+      const imported = data.settings.activity.slice(0, 100);
+      const valid = imported.every((item): item is ActivityEntry => !!item && typeof item === 'object' && typeof item.id === 'string' && typeof item.timestamp === 'number' && Number.isFinite(item.timestamp) && typeof item.action === 'string' && typeof item.detail === 'string' && ['success','warning','info'].includes(item.status));
+      if (!valid) throw new Error('Backup activity records failed validation.');
+      if (!window.confirm('Restore app theme and local activity history from this file? Existing local history will be replaced. No phone data will be changed.')) return;
+      setTheme(data.settings.theme);
+      setActivity(imported);
+      recordActivity('Settings restore', 'Restored local preferences and activity history from backup');
+      setBackupMessage('Backup restored successfully. No Android device data was changed.');
+    } catch (e) { setBackupMessage(e instanceof Error ? e.message : 'Could not read this backup file.'); }
+    finally { if (backupInputRef.current) backupInputRef.current.value = ''; }
+  }, [recordActivity]);
 
   useEffect(() => {
     localStorage.setItem('mifask-theme', theme);
@@ -241,6 +271,19 @@ function App() {
                   <p className="health-footnote">Diagnostics are read-only. Battery temperature and storage figures are reported by Android and may vary by device. Last scan: {new Date(Number(health.scannedAt) * 1000).toLocaleString()}.</p>
                 </>
               )}
+            </section>
+          )}
+
+          {active === 'Backup & restore' && (
+            <section className="backup-panel">
+              <div className="section-row"><div><h2>Local settings backup</h2><p>Protect your MIFASK app preferences and activity history.</p></div></div>
+              <div className="backup-notice"><ShieldCheck size={19}/><div><b>Safe, limited backup</b><p>This feature backs up only the app theme and local activity history. It does not copy phone photos, messages, contacts, accounts, application data or system files.</p></div></div>
+              <div className="backup-actions">
+                <article className="backup-card"><span className="backup-icon"><FileJson size={22}/></span><h3>Create backup</h3><p>Download a JSON file containing your current theme preference and up to 100 recent activity records.</p><button className="primary-button" onClick={exportSettingsBackup}><Download size={15}/> Export backup</button></article>
+                <article className="backup-card"><span className="backup-icon"><Upload size={22}/></span><h3>Restore backup</h3><p>Choose a MIFASK backup file. The contents are validated and you must confirm before existing local history is replaced.</p><input ref={backupInputRef} type="file" accept="application/json,.json" hidden onChange={e => void importSettingsBackup(e.target.files?.[0])}/><button className="subtle-button" onClick={() => backupInputRef.current?.click()}><Upload size={15}/> Choose backup file</button></article>
+              </div>
+              {backupMessage && <div className="backup-feedback" role="status">{backupMessage}</div>}
+              <p className="inventory-footnote">Backup files are not encrypted. Store them somewhere private and do not include them in public repositories.</p>
             </section>
           )}
 
