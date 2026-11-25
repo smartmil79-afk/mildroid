@@ -16,6 +16,8 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run build
       - run: cargo test --manifest-path src-tauri/Cargo.toml
+      - name: Generate Tauri platform icons
+        run: npm run tauri -- icon src-tauri/icons/icon.svg --output src-tauri/icons
       - run: npm run tauri build
       - uses: actions/upload-artifact@v4
         if: success()
