@@ -5,8 +5,8 @@ import {
   ListChecks, Moon, RefreshCw, Settings, ShieldCheck, Smartphone, Sun,
   Usb, CircleHelp, CheckCircle2
 } from 'lucide-react';
-import { scanDevices } from './services/deviceService';
-import type { AndroidDevice, DeviceScan } from './types';
+import { scanDevices, scanInstalledApps } from './services/deviceService';
+import type { AndroidDevice, DeviceScan, AppInventory } from './types';
 
 type Theme = 'dark' | 'light';
 const nav = [
@@ -28,7 +28,7 @@ function App() {
   const [devices, setDevices] = useState<AndroidDevice[]>([]);
   const [scan, setScan] = useState<DeviceScan | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState('');\n  const [inventory, setInventory] = useState<AppInventory | null>(null);\n  const [appsBusy, setAppsBusy] = useState(false);\n  const [appFilter, setAppFilter] = useState<'all' | 'user' | 'system' | 'unknown'>('all');\n  const [appSearch, setAppSearch] = useState('');
 
   useEffect(() => {
     localStorage.setItem('mifask-theme', theme);
@@ -55,7 +55,7 @@ function App() {
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
-  const connected = devices.filter((device) => device.state === 'device');
+  const connected = devices.filter((device) => device.state === 'device');\n\n  const loadApps = useCallback(async () => {\n    const target = connected[0];\n    if (!target) { setError('Connect and authorise an Android device before scanning its apps.'); return; }\n    setAppsBusy(true); setError('');\n    try { setInventory(await scanInstalledApps(target.serial)); }\n    catch (e) { setError(`App inventory failed: ${String(e)}`); }\n    finally { setAppsBusy(false); }\n  }, [connected]);\n\n  const visibleApps = (inventory?.apps ?? []).filter((app) =>\n    (appFilter === 'all' || app.category === appFilter) &&\n    app.packageName.toLowerCase().includes(appSearch.toLowerCase())\n  );
 
   return (
     <div className="app-shell" data-theme={theme}>
@@ -101,9 +101,53 @@ function App() {
 
           {error && <div className="notice"><CircleHelp size={18} /><div><b>ADB connection needs attention</b><p>{error}</p><small>Install Android Platform Tools, connect a phone by USB, enable USB debugging and approve this computer.</small></div></div>}
 
+          {active === 'App manager' && (
+            <div className="inventory-panel">
+              <div className="section-row">
+                <div><h2>Installed application inventory</h2><p>Read-only package metadata from the selected authorised device.</p></div>
+                <button className="primary-button" onClick={() => void loadApps()} disabled={appsBusy || connected.length === 0}>
+                  <RefreshCw size={15} className={appsBusy ? 'spin' : ''} />{appsBusy ? 'Scanning apps…' : 'Scan installed apps'}
+                </button>
+              </div>
+              {connected.length === 0 ? <div className="empty-state"><div className="empty-icon"><Smartphone size={25}/></div><h3>No authorised device</h3><p>Connect and authorise an Android phone, then return here to scan its installed packages.</p></div> : null}
+              {inventory && (
+                <>
+                  <div className="inventory-summary">
+                    <span><b>{inventory.apps.length}</b> packages found</span>
+                    <span><b>{inventory.apps.filter(a => a.category === 'user').length}</b> user apps</span>
+                    <span><b>{inventory.apps.filter(a => a.category === 'system').length}</b> system apps</span>
+                    <span><b>{inventory.apps.filter(a => a.category === 'unknown').length}</b> unclassified</span>
+                  </div>
+                  <div className="inventory-controls">
+                    <input aria-label="Search packages" placeholder="Search package name…" value={appSearch} onChange={e => setAppSearch(e.target.value)} />
+                    <select aria-label="Filter app category" value={appFilter} onChange={e => setAppFilter(e.target.value as typeof appFilter)}>
+                      <option value="all">All categories</option><option value="user">User apps</option><option value="system">System apps</option><option value="unknown">Unknown</option>
+                    </select>
+                  </div>
+                  <div className="inventory-table-wrap">
+                    <table className="inventory-table">
+                      <thead><tr><th>Package</th><th>Category</th><th>Version code</th><th>Installer</th></tr></thead>
+                      <tbody>{visibleApps.map(app => <tr key={app.packageName}>
+                        <td><b>{app.packageName}</b><small>{app.apkPath ?? 'APK path not reported'}</small></td>
+                        <td><span className={`category-tag ${app.category}`}>{app.category}</span></td>
+                        <td>{app.versionCode ?? '—'}</td><td>{app.installer ?? 'Unknown'}</td>
+                      </tr>)}</tbody>
+                    </table>
+                    {visibleApps.length === 0 && <p className="inventory-empty">No packages match this search and filter.</p>}
+                  </div>
+                  <p className="inventory-footnote">Classification is based on the reported APK path, not a safety verdict. This screen does not disable, uninstall or modify apps.</p>
+                </>
+              )}
+            </div>
+          )}
+          {active === 'Debloat recommendations' && (
+            <div className="empty-state"><div className="empty-icon"><ShieldCheck size={25}/></div><h3>Safety review is being built</h3><p>Recommendations will be evidence-based and informational. Unknown or preinstalled apps will not automatically be marked unsafe, and no app will be removed automatically.</p></div>
+          )}
+
+
           <div className="stats-grid">
             <Stat icon={<Smartphone />} label="Connected devices" value={String(connected.length)} detail={`${devices.length} detected by ADB`} />
-            <Stat icon={<AppWindow />} label="Apps scanned" value="—" detail="App inventory is the next development phase" />
+            <Stat icon={<AppWindow />} label="Apps scanned" value={inventory ? String(inventory.apps.length) : "—"} detail={inventory ? "Installed packages in latest scan" : "Open App manager to scan packages"} />
             <Stat icon={<ShieldCheck />} label="Safety status" value="Protected" detail="No changes made to your phone" />
             <Stat icon={<HardDrive />} label="Saved snapshots" value="0" detail="No snapshots created yet" />
           </div>
