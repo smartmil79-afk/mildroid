@@ -3,12 +3,13 @@ import type { ReactNode } from 'react';
 import {
   Activity, AppWindow, Clock3, Database, HardDrive, LayoutDashboard,
   ListChecks, Moon, RefreshCw, Settings, ShieldCheck, Smartphone, Sun,
-  Usb, CircleHelp, CheckCircle2
+  Usb, CircleHelp, CheckCircle2, History, Download, Trash2
 } from 'lucide-react';
 import { scanDevices, scanInstalledApps, scanDeviceHealth } from './services/deviceService';
 import type { AndroidDevice, DeviceScan, AppInventory, DeviceHealth } from './types';
 
 type Theme = 'dark' | 'light';
+type ActivityEntry = { id: string; timestamp: number; action: string; detail: string; status: 'success' | 'warning' | 'info' };
 const nav = [
   { label: 'Dashboard', icon: LayoutDashboard },
   { label: 'Connected devices', icon: Smartphone },
@@ -36,6 +37,15 @@ function App() {
   const [selectedSerial, setSelectedSerial] = useState('');
   const [health, setHealth] = useState<DeviceHealth | null>(null);
   const [healthBusy, setHealthBusy] = useState(false);
+  const [activity, setActivity] = useState<ActivityEntry[]>(() => {
+    try { return JSON.parse(localStorage.getItem('mifask-activity') || '[]') as ActivityEntry[]; }
+    catch { return []; }
+  });
+
+  useEffect(() => { localStorage.setItem('mifask-activity', JSON.stringify(activity.slice(0, 100))); }, [activity]);
+  const recordActivity = useCallback((action: string, detail: string, status: ActivityEntry['status'] = 'success') => {
+    setActivity(previous => [{ id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, timestamp: Date.now(), action, detail, status }, ...previous].slice(0, 100));
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('mifask-theme', theme);
@@ -49,6 +59,7 @@ function App() {
       const result = await scanDevices();
       setScan(result);
       setDevices(result.devices);
+      recordActivity('Device scan', `${result.devices.length} device(s) detected by ADB`, result.adbAvailable ? 'success' : 'warning');
       if (!result.adbAvailable) setError(result.message);
       else if (result.devices.some((device) => device.state === 'unauthorized')) {
         setError('A phone is waiting for USB debugging authorisation. Unlock it and approve this computer.');
@@ -74,10 +85,10 @@ function App() {
   const loadHealth = useCallback(async () => {
     if (!selectedDevice) { setError('Connect and authorise an Android device before running diagnostics.'); return; }
     setHealthBusy(true); setError('');
-    try { setHealth(await scanDeviceHealth(selectedDevice.serial)); }
+    try { setHealth(await scanDeviceHealth(selectedDevice.serial)); recordActivity('Device diagnostics', `Read-only diagnostics completed for ${selectedDevice.model || 'Android device'}`); }
     catch (e) { setError(`Device diagnostics failed: ${String(e)}`); }
     finally { setHealthBusy(false); }
-  }, [selectedDevice]);
+  }, [selectedDevice, recordActivity]);
 
   useEffect(() => { setHealth(null); }, [selectedSerial]);
 
@@ -116,10 +127,10 @@ function App() {
     const target = selectedDevice;
     if (!target) { setError('Connect and authorise an Android device before scanning its apps.'); return; }
     setAppsBusy(true); setError('');
-    try { setInventory(await scanInstalledApps(target.serial)); }
+    try { const result = await scanInstalledApps(target.serial); setInventory(result); recordActivity('App inventory scan', `${result.apps.length} package(s) inspected on ${target.model || 'Android device'}`); }
     catch (e) { setError(`App inventory failed: ${String(e)}`); }
     finally { setAppsBusy(false); }
-  }, [selectedDevice]);
+  }, [selectedDevice, recordActivity]);
 
   const allApps = inventory?.apps ?? [];
   const visibleApps = allApps.filter((app) =>
@@ -230,6 +241,35 @@ function App() {
                   <p className="health-footnote">Diagnostics are read-only. Battery temperature and storage figures are reported by Android and may vary by device. Last scan: {new Date(Number(health.scannedAt) * 1000).toLocaleString()}.</p>
                 </>
               )}
+            </section>
+          )}
+
+          {active === 'Activity history' && (
+            <section className="activity-panel">
+              <div className="section-row">
+                <div><h2>Local activity history</h2><p>Recent scans and diagnostics recorded on this computer only. No device serial numbers or app lists are stored here.</p></div>
+                <div className="inventory-actions">
+                  <button className="subtle-button" onClick={() => {
+                    const rows = [['Time','Action','Details','Status'], ...activity.map(item => [new Date(item.timestamp).toISOString(), item.action, item.detail, item.status])];
+                    const csv = rows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\\r\\n');
+                    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+                    const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'mifask-activity-history.csv'; anchor.click(); URL.revokeObjectURL(url);
+                  }} disabled={activity.length === 0}><Download size={14}/> Export history</button>
+                  <button className="subtle-button" onClick={() => { if (window.confirm('Clear the activity history saved on this computer?')) setActivity([]); }} disabled={activity.length === 0}><Trash2 size={14}/> Clear history</button>
+                </div>
+              </div>
+              {activity.length === 0 ? (
+                <div className="empty-state"><div className="empty-icon"><History size={24}/></div><h3>No activity recorded yet</h3><p>Device scans, app inventory scans and diagnostics will appear here.</p></div>
+              ) : (
+                <div className="activity-list">{activity.map(item => (
+                  <article className="activity-row" key={item.id}>
+                    <span className={`activity-status ${item.status}`}/>
+                    <div className="activity-copy"><b>{item.action}</b><p>{item.detail}</p></div>
+                    <time dateTime={new Date(item.timestamp).toISOString()}>{new Date(item.timestamp).toLocaleString()}</time>
+                  </article>
+                ))}</div>
+              )}
+              <p className="inventory-footnote">History is stored in this browser's local storage, limited to the latest 100 events, and can be cleared at any time.</p>
             </section>
           )}
 
