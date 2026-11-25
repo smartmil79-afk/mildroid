@@ -71,13 +71,18 @@ async function deviceInfo(serial){
   const found=devices.find(d=>d.serial===serial);
   if(!found)throw Object.assign(new Error('Device is no longer connected.'),{status:404});
   if(found.state!=='device')throw Object.assign(new Error('Device is not authorised for USB debugging.'),{status:409});
-  const [propRaw,batteryRaw,storageRaw,packagesRaw]=await Promise.all([
+  const [propRaw,batteryRaw,storageRaw,packagesRaw,userPackagesRaw,systemPackagesRaw]=await Promise.all([
     adb(['-s',serial,'shell','getprop']),
     adb(['-s',serial,'shell','dumpsys','battery']),
     adb(['-s',serial,'shell','df','-k','/data']),
-    adb(['-s',serial,'shell','pm','list','packages'])
+    adb(['-s',serial,'shell','pm','list','packages']),
+    adb(['-s',serial,'shell','pm','list','packages','-3']),
+    adb(['-s',serial,'shell','pm','list','packages','-s'])
   ]);
   const p=parseProps(propRaw);
+  const parsePackageSet=raw=>new Set(raw.split(/\r?\n/).map(x=>x.trim().replace(/^package:/,'')).filter(Boolean));
+  const userPackages=parsePackageSet(userPackagesRaw);
+  const systemPackages=parsePackageSet(systemPackagesRaw);
   const packages=packagesRaw.split(/\r?\n/).map(x=>x.trim().replace(/^package:/,'')).filter(Boolean).sort();
   return {
     device:{
@@ -91,8 +96,9 @@ async function deviceInfo(serial){
     },
     battery:parseBattery(batteryRaw),
     storage:parseStorage(storageRaw),
-    applications:packages.map(packageName=>({packageName})),
+    applications:packages.map(packageName=>({packageName,category:userPackages.has(packageName)?'user':systemPackages.has(packageName)?'system':'unknown'})),
     applicationCount:packages.length,
+    applicationCategories:{user:userPackages.size,system:systemPackages.size,unknown:packages.filter(name=>!userPackages.has(name)&&!systemPackages.has(name)).length},
     readOnly:true
   };
 }
