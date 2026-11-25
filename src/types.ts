@@ -26,3 +26,17 @@ export type AppInventory = {
   scannedAt: string;
   message: string;
 };
+
+export type DeviceHealth = {
+  deviceSerial: string;
+  manufacturer?: string;
+  model?: string;
+  androidVersion?: string;
+  securityPatch?: string;
+  batteryLevel?: number;
+  batteryStatus?: string;
+  batteryTemperatureC?: number;
+  storageTotalGb?: number;
+  storageFreeGb?: number;
+  scannedAt: string;
+};
