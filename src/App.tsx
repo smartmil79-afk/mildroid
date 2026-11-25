@@ -5,7 +5,7 @@ import {
   ListChecks, Moon, RefreshCw, Settings, ShieldCheck, Smartphone, Sun,
   Usb, CircleHelp, CheckCircle2, History, Download, Trash2, FileJson, Upload
 } from 'lucide-react';
-import { scanDevices, scanInstalledApps, scanDeviceHealth } from './services/deviceService';
+import { scanDevices, scanInstalledApps, scanDeviceHealth, configureAdbPath } from './services/deviceService';
 import type { AndroidDevice, DeviceScan, AppInventory, DeviceHealth } from './types';
 
 type Theme = 'dark' | 'light';
@@ -26,6 +26,8 @@ function App() {
     return saved === 'light' ? 'light' : 'dark';
   });
   const [active, setActive] = useState('Dashboard');
+  const [adbPath, setAdbPath] = useState(() => localStorage.getItem('mifask-adb-path') || '');
+  const [adbPathMessage, setAdbPathMessage] = useState('');
   const [devices, setDevices] = useState<AndroidDevice[]>([]);
   const [scan, setScan] = useState<DeviceScan | null>(null);
   const [busy, setBusy] = useState(false);
@@ -273,6 +275,8 @@ function App() {
               )}
             </section>
           )}
+
+          {active === 'Settings' && <section className="backup-panel"><h2>Android Debug Bridge (ADB)</h2><p>Enter the full path to adb.exe. MIFASK validates the executable before saving.</p><label htmlFor="adb-path">ADB executable path</label><input id="adb-path" className="adb-path-input" value={adbPath} onChange={e => setAdbPath(e.target.value)} placeholder="C:\\platform-tools\\adb.exe"/><div className="inventory-actions"><button className="primary-button" onClick={async () => { try { const result = await configureAdbPath(adbPath); localStorage.setItem('mifask-adb-path',adbPath.trim()); setAdbPathMessage('ADB configured: '+result); await refresh(); } catch(e) { setAdbPathMessage(String(e)); } }}>Save and test ADB</button><button className="subtle-button" onClick={async () => { setAdbPath(''); localStorage.removeItem('mifask-adb-path'); await configureAdbPath(''); await refresh(); setAdbPathMessage('Automatic detection enabled.'); }}>Automatic detection</button></div>{adbPathMessage && <p>{adbPathMessage}</p>}<p className="inventory-footnote">Try C:\\platform-tools\\adb.exe on this PC.</p></section>}
 
           {active === 'Backup & restore' && (
             <section className="backup-panel">
