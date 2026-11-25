@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { AppInventory, DeviceScan } from '../types';
+import type { AppInventory, DeviceHealth, DeviceScan } from '../types';
 
 export async function scanDevices(): Promise<DeviceScan> {
   return invoke<DeviceScan>('list_android_devices');
@@ -7,4 +7,8 @@ export async function scanDevices(): Promise<DeviceScan> {
 
 export async function scanInstalledApps(serial: string): Promise<AppInventory> {
   return invoke<AppInventory>('list_installed_android_apps', { serial });
+}
+
+export async function scanDeviceHealth(serial: string): Promise<DeviceHealth> {
+  return invoke<DeviceHealth>('get_android_device_health', { serial });
 }
