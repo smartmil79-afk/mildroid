@@ -45,3 +45,5 @@
 .finding-package-list code{color:var(--text);overflow-wrap:anywhere}
 .finding-package-list span,.finding-package-list small{color:var(--muted)}
 @media(max-width:760px){.safety-centre{padding:12px}.safety-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.inventory-actions{flex-wrap:wrap;justify-content:flex-end}}
+
+.device-picker{max-width:260px;min-height:36px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2);color:var(--text);padding:0 10px;font:inherit;font-size:10px}.device-picker:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}@media(max-width:760px){.inventory-actions{flex-wrap:wrap}.device-picker{max-width:100%;width:100%}}
