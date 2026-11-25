@@ -70,10 +70,17 @@ function App() {
     finally { setAppsBusy(false); }
   }, [connected]);
 
-  const visibleApps = (inventory?.apps ?? []).filter((app) =>
+  const allApps = inventory?.apps ?? [];
+  const visibleApps = allApps.filter((app) =>
     (appFilter === 'all' || app.category === appFilter) &&
     app.packageName.toLowerCase().includes(appSearch.toLowerCase())
   );
+  const appsWithoutInstaller = allApps.filter(app => app.category === 'user' && !app.installer);
+  const userApps = allApps.filter(app => app.category === 'user');
+  const systemApps = allApps.filter(app => app.category === 'system');
+  const sourceCoverage = userApps.length
+    ? Math.round(((userApps.length - appsWithoutInstaller.length) / userApps.length) * 100)
+    : 0;
 
   return (
     <div className="app-shell" data-theme={theme}>
@@ -159,7 +166,46 @@ function App() {
             </div>
           )}
           {active === 'Debloat recommendations' && (
-            <div className="empty-state"><div className="empty-icon"><ShieldCheck size={25}/></div><h3>Safety review is being built</h3><p>Recommendations will be evidence-based and informational. Unknown or preinstalled apps will not automatically be marked unsafe, and no app will be removed automatically.</p></div>
+            <div className="safety-centre">
+              <div className="section-row">
+                <div><h2>Application Intelligence &amp; Safety Centre</h2><p>Evidence-based visibility into installed packages. No automatic blocking, disabling or removal.</p></div>
+                <button className="primary-button" onClick={() => void loadApps()} disabled={appsBusy || connected.length === 0}>
+                  <RefreshCw size={15} className={appsBusy ? 'spin' : ''} />{appsBusy ? 'Reviewing…' : 'Refresh analysis'}
+                </button>
+              </div>
+              {!inventory ? (
+                <div className="empty-state"><div className="empty-icon"><ShieldCheck size={25}/></div><h3>Scan installed apps to begin</h3><p>The centre needs a current read-only inventory before it can explain package categories and installer metadata.</p></div>
+              ) : (
+                <>
+                  <div className="safety-metrics">
+                    <div><small>Total packages</small><b>{allApps.length}</b></div>
+                    <div><small>User-installed</small><b>{userApps.length}</b></div>
+                    <div><small>System packages</small><b>{systemApps.length}</b></div>
+                    <div><small>Installer metadata coverage</small><b>{sourceCoverage}%</b></div>
+                  </div>
+                  <div className="safety-explainer">
+                    <div className="safety-explainer-icon"><ShieldCheck size={20}/></div>
+                    <div><b>How to interpret this review</b><p>System/user labels are based on Android's reported APK location. Missing installer information is a visibility gap, not proof that an app is unsafe. Review unfamiliar apps using the phone's own app settings and a trusted source before taking action.</p></div>
+                  </div>
+                  <div className="safety-findings">
+                    <h3>Items worth checking</h3>
+                    {appsWithoutInstaller.length === 0 ? (
+                      <div className="finding-row"><span className="finding-dot good" /><div><b>No missing installer metadata in user apps</b><p>This scan found installer metadata for every user-category package.</p></div></div>
+                    ) : (
+                      <>
+                        <div className="finding-row"><span className="finding-dot review" /><div><b>{appsWithoutInstaller.length} user apps have no installer recorded</b><p>This can happen with preloaded, restored or manually installed apps. It is a prompt to verify the app's origin, not a malware detection.</p></div></div>
+                        <div className="finding-package-list">
+                          {appsWithoutInstaller.slice(0, 20).map(app => <div key={app.packageName}><code>{app.packageName}</code><span>Origin not reported</span></div>)}
+                          {appsWithoutInstaller.length > 20 && <small>Showing first 20 of {appsWithoutInstaller.length} packages.</small>}
+                        </div>
+                      </>
+                    )}
+                    <div className="finding-row"><span className="finding-dot info" /><div><b>{systemApps.length} system-category packages</b><p>These are located outside the standard user-app directory. System status alone does not indicate whether a package is safe or needed.</p></div></div>
+                  </div>
+                  <p className="inventory-footnote">Analysis timestamp (UTC epoch seconds): {inventory.scannedAt}. This centre does not upload app lists, classify apps using cloud reputation services, or modify the connected device.</p>
+                </>
+              )}
+            </div>
           )}
 
 
