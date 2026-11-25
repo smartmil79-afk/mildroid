@@ -1,7 +1,12 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { AppInventory, DeviceHealth, DeviceScan } from '../types';
 
+export async function configureAdbPath(path: string): Promise<string> {
+  return invoke<string>('configure_adb_path', { path: path.trim() || null });
+}
+
 export async function scanDevices(): Promise<DeviceScan> {
+  await configureAdbPath(localStorage.getItem('mifask-adb-path') || '');
   return invoke<DeviceScan>('list_android_devices');
 }
 
