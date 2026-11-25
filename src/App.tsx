@@ -70,7 +70,7 @@ function App() {
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [recordActivity]);
 
   useEffect(() => { void refresh(); }, [refresh]);
   const connected = devices.filter((device) => device.state === 'device');
