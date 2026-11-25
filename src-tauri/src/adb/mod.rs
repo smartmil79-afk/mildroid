@@ -102,8 +102,7 @@ fn parse_storage_health(output: &str) -> (Option<f32>, Option<f32>) {
     let Some(line) = line else { return (None, None) };
     let fields = line.split_whitespace().collect::<Vec<_>>();
     if fields.len() < 6 { return (None, None); }
-    let total = fields[1].parse::<f64>().ok()?;
-    let available = fields[3].parse::<f64>().ok()?;
+    let (Ok(total), Ok(available)) = (fields[1].parse::<f64>(), fields[3].parse::<f64>()) else { return (None, None) };
     (Some((total / 1_048_576.0) as f32), Some((available / 1_048_576.0) as f32))
 }
 
