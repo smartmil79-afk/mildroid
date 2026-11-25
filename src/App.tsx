@@ -28,7 +28,11 @@ function App() {
   const [devices, setDevices] = useState<AndroidDevice[]>([]);
   const [scan, setScan] = useState<DeviceScan | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');\n  const [inventory, setInventory] = useState<AppInventory | null>(null);\n  const [appsBusy, setAppsBusy] = useState(false);\n  const [appFilter, setAppFilter] = useState<'all' | 'user' | 'system' | 'unknown'>('all');\n  const [appSearch, setAppSearch] = useState('');
+  const [error, setError] = useState('');
+  const [inventory, setInventory] = useState<AppInventory | null>(null);
+  const [appsBusy, setAppsBusy] = useState(false);
+  const [appFilter, setAppFilter] = useState<'all' | 'user' | 'system' | 'unknown'>('all');
+  const [appSearch, setAppSearch] = useState('');
 
   useEffect(() => {
     localStorage.setItem('mifask-theme', theme);
@@ -55,7 +59,21 @@ function App() {
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
-  const connected = devices.filter((device) => device.state === 'device');\n\n  const loadApps = useCallback(async () => {\n    const target = connected[0];\n    if (!target) { setError('Connect and authorise an Android device before scanning its apps.'); return; }\n    setAppsBusy(true); setError('');\n    try { setInventory(await scanInstalledApps(target.serial)); }\n    catch (e) { setError(`App inventory failed: ${String(e)}`); }\n    finally { setAppsBusy(false); }\n  }, [connected]);\n\n  const visibleApps = (inventory?.apps ?? []).filter((app) =>\n    (appFilter === 'all' || app.category === appFilter) &&\n    app.packageName.toLowerCase().includes(appSearch.toLowerCase())\n  );
+  const connected = devices.filter((device) => device.state === 'device');
+
+  const loadApps = useCallback(async () => {
+    const target = connected[0];
+    if (!target) { setError('Connect and authorise an Android device before scanning its apps.'); return; }
+    setAppsBusy(true); setError('');
+    try { setInventory(await scanInstalledApps(target.serial)); }
+    catch (e) { setError(`App inventory failed: ${String(e)}`); }
+    finally { setAppsBusy(false); }
+  }, [connected]);
+
+  const visibleApps = (inventory?.apps ?? []).filter((app) =>
+    (appFilter === 'all' || app.category === appFilter) &&
+    app.packageName.toLowerCase().includes(appSearch.toLowerCase())
+  );
 
   return (
     <div className="app-shell" data-theme={theme}>
