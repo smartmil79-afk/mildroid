@@ -29,6 +29,9 @@ function App() {
   const [adbPath, setAdbPath] = useState(() => localStorage.getItem('mifask-adb-path') || '');
   const [adbPathMessage, setAdbPathMessage] = useState('');
   const [devices, setDevices] = useState<AndroidDevice[]>([]);
+  const [deviceNotice, setDeviceNotice] = useState('');
+  const previousConnectedRef = useRef<Set<string>>(new Set());
+  const [reviewedPackages, setReviewedPackages] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('mifask-reviewed-packages') || '[]') as string[]; } catch { return []; } });
   const [scan, setScan] = useState<DeviceScan | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -45,6 +48,7 @@ function App() {
   });
 
   useEffect(() => { localStorage.setItem('mifask-activity', JSON.stringify(activity.slice(0, 100))); }, [activity]);
+  useEffect(() => { localStorage.setItem('mifask-reviewed-packages', JSON.stringify(reviewedPackages)); }, [reviewedPackages]);
   const recordActivity = useCallback((action: string, detail: string, status: ActivityEntry['status'] = 'success') => {
     setActivity(previous => [{ id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, timestamp: Date.now(), action, detail, status }, ...previous].slice(0, 100));
   }, []);
@@ -91,6 +95,14 @@ function App() {
       const result = await scanDevices();
       setScan(result);
       setDevices(result.devices);
+      const nowConnected = new Set(result.devices.filter(device => device.state === 'device').map(device => device.serial));
+      const newlyConnected = [...nowConnected].filter(serial => !previousConnectedRef.current.has(serial));
+      if (newlyConnected.length) {
+        const labels = result.devices.filter(device => newlyConnected.includes(device.serial)).map(device => device.model || 'Android device');
+        setDeviceNotice(`${labels.join(', ')} connected successfully.`);
+        recordActivity('Device connected', `${newlyConnected.length} Android device(s) authorised and connected`);
+      }
+      previousConnectedRef.current = nowConnected;
       recordActivity('Device scan', `${result.devices.length} device(s) detected by ADB`, result.adbAvailable ? 'success' : 'warning');
       if (!result.adbAvailable) setError(result.message);
       else if (result.devices.some((device) => device.state === 'unauthorized')) {
@@ -104,7 +116,7 @@ function App() {
     }
   }, [recordActivity]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { void refresh(); const timer = window.setInterval(() => { void refresh(); }, 5000); return () => window.clearInterval(timer); }, [refresh]);
   const connected = devices.filter((device) => device.state === 'device');
   const selectedDevice = connected.find((device) => device.serial === selectedSerial) ?? connected[0];
 
@@ -233,6 +245,7 @@ function App() {
         </header>
 
         <section className="content">
+          {deviceNotice && <div className="device-connected-toast" role="status" aria-live="polite"><CheckCircle2 size={18}/><span><b>Device connected</b>{deviceNotice}</span><button onClick={() => setDeviceNotice('')} aria-label="Dismiss device notification">×</button></div>}
           <div className="page-heading">
             <div><div className="eyebrow">DEVICE MANAGEMENT PLATFORM</div><h1>{active}</h1><p>Inspect your Android devices and understand what is installed.</p></div>
             <button className="primary-button" onClick={() => void refresh()} disabled={busy}>
@@ -403,6 +416,16 @@ function App() {
                       </>
                     )}
                     <div className="finding-row"><span className="finding-dot info" /><div><b>{systemApps.length} system-category packages</b><p>These are located outside the standard user-app directory. System status alone does not indicate whether a package is safe or needed.</p></div></div>
+                  </div>
+                  <div className="debloat-review">
+                    <div className="section-row"><div><h3>Safe debloat review queue</h3><p>Review user-installed packages individually. MIFASK does not uninstall, disable or alter apps.</p></div><span className="review-count">{userApps.length - reviewedPackages.filter(name => userApps.some(app => app.packageName === name)).length} to review</span></div>
+                    {userApps.length === 0 ? <p className="inventory-footnote">Run an app inventory scan to create a review queue.</p> : <div className="review-app-list">
+                      {userApps.map(app => <div className="review-app-row" key={app.packageName}>
+                        <div><b>{app.packageName}</b><small>{app.installer ? `Installer: ${app.installer}` : 'Installer not reported'} · {app.versionCode ? `Version ${app.versionCode}` : 'Version unavailable'}</small></div>
+                        <label><input type="checkbox" checked={reviewedPackages.includes(app.packageName)} onChange={e => setReviewedPackages(previous => e.target.checked ? [...previous, app.packageName] : previous.filter(name => name !== app.packageName))}/> Reviewed</label>
+                      </div>)}
+                    </div>}
+                    <p className="inventory-footnote">A user-app label does not mean an app is unnecessary. Check its purpose and dependencies in Android Settings before deciding what to keep. System packages are not placed in this queue.</p>
                   </div>
                   <p className="inventory-footnote">Analysis timestamp (UTC epoch seconds): {inventory.scannedAt}. This centre does not upload app lists, classify apps using cloud reputation services, or modify the connected device.</p>
                 </>
