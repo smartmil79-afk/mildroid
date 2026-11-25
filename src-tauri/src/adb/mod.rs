@@ -108,7 +108,7 @@ fn chrono_free_timestamp() -> String {
 
 fn parse_app_line(line: &str) -> Option<InstalledApp> {
     let rest = line.trim().strip_prefix("package:")?;
-    let (path_and_package, metadata) = rest.split_once(' ')?;
+    let (path_and_package, metadata) = rest.split_once(' ').unwrap_or((rest, ""));
     let (apk_path, package_name) = path_and_package.rsplit_once('=')?;
     if package_name.is_empty() { return None; }
 
