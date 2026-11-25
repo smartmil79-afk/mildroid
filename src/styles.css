@@ -63,3 +63,9 @@
 .health-footnote{font-size:10px;line-height:1.6;color:var(--muted);margin:10px 0 0}
 @media(max-width:900px){.health-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.health-panel{padding:12px}.health-metrics{gap:8px}.health-metrics>div{padding:10px}.health-metrics strong{font-size:18px}}
+
+.storage-usage{margin:17px 0 6px;padding:13px 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel-2)}
+.storage-usage>div:first-child{display:flex;justify-content:space-between;gap:12px;margin-bottom:9px;font-size:10px}
+.storage-usage b{font-weight:700}.storage-usage span{color:var(--muted);font-variant-numeric:tabular-nums}
+.storage-track{height:8px;border-radius:20px;background:var(--surface);overflow:hidden}
+.storage-track>span{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,var(--cyan),var(--green));transition:width .25s ease}
