@@ -33,6 +33,7 @@ function App() {
   const [appsBusy, setAppsBusy] = useState(false);
   const [appFilter, setAppFilter] = useState<'all' | 'user' | 'system' | 'unknown'>('all');
   const [appSearch, setAppSearch] = useState('');
+  const [selectedSerial, setSelectedSerial] = useState('');
 
   useEffect(() => {
     localStorage.setItem('mifask-theme', theme);
@@ -60,15 +61,22 @@ function App() {
 
   useEffect(() => { void refresh(); }, [refresh]);
   const connected = devices.filter((device) => device.state === 'device');
+  const selectedDevice = connected.find((device) => device.serial === selectedSerial) ?? connected[0];
+
+  useEffect(() => {
+    if (!connected.some((device) => device.serial === selectedSerial)) {
+      setSelectedSerial(connected[0]?.serial ?? '');
+    }
+  }, [devices, selectedSerial]);
 
   const loadApps = useCallback(async () => {
-    const target = connected[0];
+    const target = selectedDevice;
     if (!target) { setError('Connect and authorise an Android device before scanning its apps.'); return; }
     setAppsBusy(true); setError('');
     try { setInventory(await scanInstalledApps(target.serial)); }
     catch (e) { setError(`App inventory failed: ${String(e)}`); }
     finally { setAppsBusy(false); }
-  }, [connected]);
+  }, [selectedDevice]);
 
   const allApps = inventory?.apps ?? [];
   const visibleApps = allApps.filter((app) =>
@@ -153,6 +161,7 @@ function App() {
               <div className="section-row">
                 <div><h2>Installed application inventory</h2><p>Read-only package metadata from the selected authorised device.</p></div>
                 <div className="inventory-actions">
+                  {connected.length > 1 && <select className="device-picker" aria-label="Choose Android device" value={selectedDevice?.serial ?? ''} onChange={e => { setSelectedSerial(e.target.value); setInventory(null); }}><option value="" disabled>Select device</option>{connected.map(device => <option key={device.serial} value={device.serial}>{device.model || device.serial} · {device.serial}</option>)}</select>}
                   <button className="subtle-button" onClick={() => setActive('Debloat recommendations')} disabled={!inventory}>Open Safety Centre</button>
                   <button className="primary-button" onClick={() => void loadApps()} disabled={appsBusy || connected.length === 0}>
                     <RefreshCw size={15} className={appsBusy ? 'spin' : ''} />{appsBusy ? 'Scanning apps…' : 'Scan installed apps'}
@@ -195,6 +204,7 @@ function App() {
               <div className="section-row">
                 <div><h2>Application Intelligence &amp; Safety Centre</h2><p>Evidence-based visibility into installed packages. No automatic blocking, disabling or removal.</p></div>
                 <div className="inventory-actions">
+                  {connected.length > 1 && <select className="device-picker" aria-label="Choose Android device" value={selectedDevice?.serial ?? ''} onChange={e => { setSelectedSerial(e.target.value); setInventory(null); }}><option value="" disabled>Select device</option>{connected.map(device => <option key={device.serial} value={device.serial}>{device.model || device.serial} · {device.serial}</option>)}</select>}
                   <button className="subtle-button" onClick={exportInventoryReport} disabled={!inventory}>Export CSV report</button>
                   <button className="primary-button" onClick={() => void loadApps()} disabled={appsBusy || connected.length === 0}>
                     <RefreshCw size={15} className={appsBusy ? 'spin' : ''} />{appsBusy ? 'Reviewing…' : 'Refresh analysis'}
@@ -260,7 +270,7 @@ function App() {
                   <div className="device-icon"><Smartphone /></div>
                   <div className="device-meta"><b>{device.model || device.device || 'Android device'}</b><small>{device.serial} · {device.product || 'Product unknown'}</small></div>
                   <span className={`state ${device.state === 'device' ? 'ok' : 'pending'}`}><i />{device.state}</span>
-                  <button className="subtle-button" onClick={() => setActive('Connected devices')}>Inspect</button>
+                  <button className="subtle-button" onClick={() => { setSelectedSerial(device.serial); setActive('App manager'); }}>Inspect apps</button>
                 </div>
               ))}
             </div>
