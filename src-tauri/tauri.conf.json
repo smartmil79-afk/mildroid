@@ -10,23 +10,31 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [{
-      "label": "main",
-      "title": "MIFASK Android Cleaner",
-      "width": 1280,
-      "height": 820,
-      "minWidth": 900,
-      "minHeight": 620
-    }],
+    "windows": [
+      {
+        "label": "main",
+        "title": "MIFASK Android Cleaner",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 900,
+        "minHeight": 620
+      }
+    ],
     "security": {
       "csp": "default-src 'self'; img-src 'self' asset: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src ipc: http://ipc.localhost"
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": [
+      "nsis",
+      "msi"
+    ],
     "category": "Utility",
     "shortDescription": "Android device inspection and management",
-    "longDescription": "A safety-first Android device management desktop application."
+    "longDescription": "A safety-first Android device management desktop application.",
+    "icon": [
+      "icons/icon.ico"
+    ]
   }
 }
