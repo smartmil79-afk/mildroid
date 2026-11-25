@@ -89,3 +89,5 @@
 .backup-card h3{font:700 14px Manrope,sans-serif;margin:15px 0 5px}.backup-card p{font-size:11px;color:var(--muted);line-height:1.6;flex:1;margin:0 0 16px}
 .backup-feedback{margin-top:15px;padding:12px;border-radius:8px;background:var(--surface);font-size:11px;color:var(--text);line-height:1.5}
 @media(max-width:760px){.backup-panel{padding:12px}.backup-actions{grid-template-columns:1fr}.backup-card{min-height:190px}}
+
+.adb-settings{display:grid;gap:10px;margin-top:18px}.adb-settings label,.backup-panel label{font-size:11px;font-weight:700;color:var(--text)}.adb-path-input{width:100%;max-width:680px;padding:13px 14px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2);color:var(--text);font:12px monospace;outline:none}.adb-path-input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(39,214,232,.1)}
