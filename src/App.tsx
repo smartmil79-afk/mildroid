@@ -81,6 +81,37 @@ function App() {
 
   useEffect(() => { setHealth(null); }, [selectedSerial]);
 
+
+  const exportHealthReport = useCallback(() => {
+    if (!health) return;
+    const rows = [
+      ['Field', 'Value'],
+      ['Device serial', health.deviceSerial],
+      ['Manufacturer', health.manufacturer ?? ''],
+      ['Model', health.model ?? ''],
+      ['Android version', health.androidVersion ?? ''],
+      ['Security patch', health.securityPatch ?? ''],
+      ['Battery level (%)', health.batteryLevel ?? ''],
+      ['Battery status', health.batteryStatus ?? ''],
+      ['Battery temperature (C)', health.batteryTemperatureC ?? ''],
+      ['Storage total (GB)', health.storageTotalGb ?? ''],
+      ['Storage free (GB)', health.storageFreeGb ?? ''],
+      ['Scanned at (Unix seconds)', health.scannedAt],
+    ];
+    const csv = rows.map(row => row.map(value =>
+      `"${String(value).replace(/"/g, '""')}"`
+    ).join(',')).join('\\r\\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `mifask-device-health-${health.deviceSerial.replace(/[^a-zA-Z0-9_-]/g, '_')}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }, [health]);
+
   const loadApps = useCallback(async () => {
     const target = selectedDevice;
     if (!target) { setError('Connect and authorise an Android device before scanning its apps.'); return; }
@@ -174,7 +205,7 @@ function App() {
                 <div><h2>Device Health &amp; Diagnostics</h2><p>Read-only battery, Android version and storage information from the selected phone.</p></div>
                 <div className="inventory-actions">
                   {connected.length > 1 && <select className="device-picker" aria-label="Choose device for diagnostics" value={selectedDevice?.serial ?? ''} onChange={e => setSelectedSerial(e.target.value)}><option value="" disabled>Select device</option>{connected.map(device => <option key={device.serial} value={device.serial}>{device.model || device.serial} · {device.serial}</option>)}</select>}
-                  <button className="primary-button" onClick={() => void loadHealth()} disabled={healthBusy || !selectedDevice}>
+                  <div className="inventory-actions"><button className="subtle-button" onClick={exportHealthReport} disabled={!health}>Export report</button><button className="primary-button" onClick={() => void loadHealth()} disabled={healthBusy || !selectedDevice}>
                     <RefreshCw size={15} className={healthBusy ? 'spin' : ''} />{healthBusy ? 'Checking…' : 'Run diagnostics'}
                   </button>
                 </div>
@@ -190,6 +221,12 @@ function App() {
                     <div><span className="health-icon"><HardDrive size={17}/></span><small>Storage free</small><strong>{health.storageFreeGb == null ? '—' : `${health.storageFreeGb.toFixed(1)} GB`}</strong><em>{health.storageTotalGb == null ? 'Total unavailable' : `of ${health.storageTotalGb.toFixed(1)} GB total`}</em></div>
                     <div><span className="health-icon"><ShieldCheck size={17}/></span><small>Security patch</small><strong className="patch-value">{health.securityPatch || 'Unknown'}</strong><em>Reported by Android</em></div>
                   </div>
+                  {health.storageTotalGb != null && health.storageFreeGb != null && health.storageTotalGb > 0 && (
+                    <div className="storage-usage">
+                      <div><b>Storage usage</b><span>{Math.max(0, Math.min(100, ((health.storageTotalGb - health.storageFreeGb) / health.storageTotalGb) * 100)).toFixed(1)}% used</span></div>
+                      <div className="storage-track"><span style={{ width: `${Math.max(0, Math.min(100, ((health.storageTotalGb - health.storageFreeGb) / health.storageTotalGb) * 100))}%` }} /></div>
+                    </div>
+                  )}
                   <p className="health-footnote">Diagnostics are read-only. Battery temperature and storage figures are reported by Android and may vary by device. Last scan: {new Date(Number(health.scannedAt) * 1000).toLocaleString()}.</p>
                 </>
               )}
