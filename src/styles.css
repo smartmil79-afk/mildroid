@@ -47,3 +47,19 @@
 @media(max-width:760px){.safety-centre{padding:12px}.safety-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.inventory-actions{flex-wrap:wrap;justify-content:flex-end}}
 
 .device-picker{max-width:260px;min-height:36px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2);color:var(--text);padding:0 10px;font:inherit;font-size:10px}.device-picker:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}@media(max-width:760px){.inventory-actions{flex-wrap:wrap}.device-picker{max-width:100%;width:100%}}
+
+.health-panel{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:18px;margin:20px 0;box-shadow:var(--shadow)}
+.health-empty{display:flex;align-items:center;gap:10px;min-height:90px;color:var(--muted);font-size:11px}
+.health-empty svg,.health-icon{color:var(--cyan)}
+.health-device-line{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:13px 2px 15px;border-bottom:1px solid var(--line)}
+.health-device-line b{font-size:12px}.health-device-line span{font-size:10px;color:var(--muted)}
+.health-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin:15px 0}
+.health-metrics>div{display:flex;flex-direction:column;align-items:flex-start;gap:6px;border:1px solid var(--line);border-radius:10px;background:var(--panel-2);padding:13px}
+.health-icon{width:29px;height:29px;border-radius:8px;background:rgba(39,214,232,.1);display:grid;place-items:center}
+.health-metrics small{font-size:10px;color:var(--muted)}
+.health-metrics strong{font:800 20px Manrope,sans-serif;overflow-wrap:anywhere}
+.health-metrics em{font-style:normal;font-size:9px;color:var(--muted)}
+.health-metrics .patch-value{font-size:14px}
+.health-footnote{font-size:10px;line-height:1.6;color:var(--muted);margin:10px 0 0}
+@media(max-width:900px){.health-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.health-panel{padding:12px}.health-metrics{gap:8px}.health-metrics>div{padding:10px}.health-metrics strong{font-size:18px}}
