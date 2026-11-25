@@ -107,40 +107,35 @@ fn chrono_free_timestamp() -> String {
 }
 
 fn parse_app_line(line: &str) -> Option<InstalledApp> {
-    let line = line.trim();
-    let rest = line.strip_prefix("package:")?;
-    let mut package_name = None;
-    let mut apk_path = None;
+    let rest = line.trim().strip_prefix("package:")?;
+    let (path_and_package, metadata) = rest.split_once(' ')?;
+    let (apk_path, package_name) = path_and_package.rsplit_once('=')?;
+    if package_name.is_empty() { return None; }
+
     let mut installer = None;
     let mut version_code = None;
-
-    for part in rest.split_whitespace() {
+    for part in metadata.split_whitespace() {
         if let Some((key, value)) = part.split_once('=') {
-            match key {
-                "name" => package_name = Some(value.to_string()),
-                "installer" => installer = if value == "null" { None } else { Some(value.to_string()) },
-                "versionCode" => version_code = Some(value.to_string()),
-                _ => {}
+            if key == "installer" && value != "null" {
+                installer = Some(value.to_string());
             }
-        } else if part.contains(".apk") || part.starts_with('/') {
-            apk_path = Some(part.to_string());
-        } else if package_name.is_none() && part.contains('.') {
-            package_name = Some(part.to_string());
+        }
+        if let Some(value) = part.strip_prefix("versionCode:").or_else(|| part.strip_prefix("versionCode=")) {
+            version_code = Some(value.to_string());
         }
     }
 
-    let package_name = package_name?;
-    let category = if apk_path.as_deref().is_some_and(|p| p.starts_with("/data/app/")) {
+    let category = if apk_path.starts_with("/data/app/") {
         "user"
-    } else if apk_path.is_some() {
+    } else if apk_path.starts_with('/') {
         "system"
     } else {
         "unknown"
     };
 
     Some(InstalledApp {
-        package_name,
-        apk_path,
+        package_name: package_name.to_string(),
+        apk_path: Some(apk_path.to_string()),
         installer,
         version_code,
         category: category.to_string(),
