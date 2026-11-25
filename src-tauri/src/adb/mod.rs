@@ -98,12 +98,22 @@ fn parse_battery_health(output: &str) -> (Option<u8>, Option<String>, Option<f32
 }
 
 fn parse_storage_health(output: &str) -> (Option<f32>, Option<f32>) {
-    let line = output.lines().filter(|line| !line.trim().is_empty()).last();
+    // Prefer the /data row when Android emits multiple mount entries.
+    let line = output.lines()
+        .filter(|line| !line.trim().is_empty())
+        .filter(|line| !line.to_ascii_lowercase().contains("filesystem"))
+        .last();
     let Some(line) = line else { return (None, None) };
     let fields = line.split_whitespace().collect::<Vec<_>>();
-    if fields.len() < 6 { return (None, None); }
-    let (Ok(total), Ok(available)) = (fields[1].parse::<f64>(), fields[3].parse::<f64>()) else { return (None, None) };
-    (Some((total / 1_048_576.0) as f32), Some((available / 1_048_576.0) as f32))
+    if fields.len() < 4 { return (None, None); }
+    // df -k reports 1K blocks: total is column 1, available is column 3.
+    let (Ok(total_kib), Ok(available_kib)) =
+        (fields[1].parse::<f64>(), fields[3].parse::<f64>())
+    else { return (None, None) };
+    (
+        Some((total_kib / 1_048_576.0) as f32),
+        Some((available_kib / 1_048_576.0) as f32),
+    )
 }
 
 fn adb_executable() -> String {
@@ -276,7 +286,7 @@ mod tests {
 
     #[test]
     fn parses_battery_health_values() {
-        let (level, status, temperature) = parse_battery_health("  level: 87\\n  status: 2\\n  temperature: 335");
+        let (level, status, temperature) = parse_battery_health("  level: 87\n  status: 2\n  temperature: 335");
         assert_eq!(level, Some(87));
         assert_eq!(status.as_deref(), Some("Charging"));
         assert_eq!(temperature, Some(33.5));
@@ -284,7 +294,7 @@ mod tests {
 
     #[test]
     fn parses_storage_health_values() {
-        let (total, free) = parse_storage_health("Filesystem 1K-blocks Used Available Use% Mounted on\\n/dev/block/dm-1 104857600 52428800 52428800 50% /data");
+        let (total, free) = parse_storage_health("Filesystem 1K-blocks Used Available Use% Mounted on\n/dev/block/dm-1 104857600 52428800 52428800 50% /data");
         assert_eq!(total, Some(100.0));
         assert_eq!(free, Some(50.0));
     }
