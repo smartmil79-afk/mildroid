@@ -38,6 +38,75 @@ pub struct AppInventory {
     pub message: String,
 }
 
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceHealth {
+    pub device_serial: String,
+    pub manufacturer: Option<String>,
+    pub model: Option<String>,
+    pub android_version: Option<String>,
+    pub security_patch: Option<String>,
+    pub battery_level: Option<u8>,
+    pub battery_status: Option<String>,
+    pub battery_temperature_c: Option<f32>,
+    pub storage_total_gb: Option<f32>,
+    pub storage_free_gb: Option<f32>,
+    pub scanned_at: String,
+}
+
+pub fn get_device_health(serial: &str) -> Result<DeviceHealth, String> {
+    if serial.trim().is_empty() {
+        return Err("A device serial is required.".into());
+    }
+    let manufacturer = adb_for(serial, &["getprop", "ro.product.manufacturer"]).ok().map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
+    let model = adb_for(serial, &["getprop", "ro.product.model"]).ok().map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
+    let android_version = adb_for(serial, &["getprop", "ro.build.version.release"]).ok().map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
+    let security_patch = adb_for(serial, &["getprop", "ro.build.version.security_patch"]).ok().map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
+    let battery = adb_for(serial, &["dumpsys", "battery"]).unwrap_or_default();
+    let (battery_level, battery_status, battery_temperature_c) = parse_battery_health(&battery);
+    let storage = adb_for(serial, &["df", "-k", "/data"]).unwrap_or_default();
+    let (storage_total_gb, storage_free_gb) = parse_storage_health(&storage);
+    Ok(DeviceHealth {
+        device_serial: serial.to_string(),
+        manufacturer, model, android_version, security_patch,
+        battery_level, battery_status, battery_temperature_c,
+        storage_total_gb, storage_free_gb,
+        scanned_at: chrono_free_timestamp(),
+    })
+}
+
+fn parse_battery_health(output: &str) -> (Option<u8>, Option<String>, Option<f32>) {
+    let mut level = None;
+    let mut status = None;
+    let mut temperature = None;
+    for line in output.lines() {
+        let Some((key, value)) = line.trim().split_once(':') else { continue };
+        let value = value.trim();
+        match key.trim() {
+            "level" => level = value.parse::<u8>().ok().filter(|v| *v <= 100),
+            "status" => status = match value {
+                "1" => Some("Unknown".into()), "2" => Some("Charging".into()),
+                "3" => Some("Discharging".into()), "4" => Some("Not charging".into()),
+                "5" => Some("Full".into()), _ => None,
+            },
+            "temperature" => temperature = value.parse::<f32>().ok().map(|v| v / 10.0),
+            _ => {}
+        }
+    }
+    (level, status, temperature)
+}
+
+fn parse_storage_health(output: &str) -> (Option<f32>, Option<f32>) {
+    let line = output.lines().filter(|line| !line.trim().is_empty()).last();
+    let Some(line) = line else { return (None, None) };
+    let fields = line.split_whitespace().collect::<Vec<_>>();
+    if fields.len() < 6 { return (None, None); }
+    let total = fields[1].parse::<f64>().ok()?;
+    let available = fields[3].parse::<f64>().ok()?;
+    (Some((total / 1_048_576.0) as f32), Some((available / 1_048_576.0) as f32))
+}
+
 fn adb_executable() -> String {
     std::env::var("MIFASK_ADB_PATH").unwrap_or_else(|_| "adb".to_string())
 }
