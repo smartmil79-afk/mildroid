@@ -103,7 +103,6 @@ function App() {
         recordActivity('Device connected', `${newlyConnected.length} Android device(s) authorised and connected`);
       }
       previousConnectedRef.current = nowConnected;
-      recordActivity('Device scan', `${result.devices.length} device(s) detected by ADB`, result.adbAvailable ? 'success' : 'warning');
       if (!result.adbAvailable) setError(result.message);
       else if (result.devices.some((device) => device.state === 'unauthorized')) {
         setError('A phone is waiting for USB debugging authorisation. Unlock it and approve this computer.');
