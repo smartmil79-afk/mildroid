@@ -130,9 +130,12 @@ function App() {
             <div className="inventory-panel">
               <div className="section-row">
                 <div><h2>Installed application inventory</h2><p>Read-only package metadata from the selected authorised device.</p></div>
-                <button className="primary-button" onClick={() => void loadApps()} disabled={appsBusy || connected.length === 0}>
-                  <RefreshCw size={15} className={appsBusy ? 'spin' : ''} />{appsBusy ? 'Scanning apps…' : 'Scan installed apps'}
-                </button>
+                <div className="inventory-actions">
+                  <button className="subtle-button" onClick={() => setActive('Debloat recommendations')} disabled={!inventory}>Open Safety Centre</button>
+                  <button className="primary-button" onClick={() => void loadApps()} disabled={appsBusy || connected.length === 0}>
+                    <RefreshCw size={15} className={appsBusy ? 'spin' : ''} />{appsBusy ? 'Scanning apps…' : 'Scan installed apps'}
+                  </button>
+                </div>
               </div>
               {connected.length === 0 ? <div className="empty-state"><div className="empty-icon"><Smartphone size={25}/></div><h3>No authorised device</h3><p>Connect and authorise an Android phone, then return here to scan its installed packages.</p></div> : null}
               {inventory && (
