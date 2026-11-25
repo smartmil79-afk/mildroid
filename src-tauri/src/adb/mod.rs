@@ -273,4 +273,19 @@ mod tests {
         assert_eq!(app.package_name, "com.android.settings");
         assert_eq!(app.category, "system");
     }
+
+    #[test]
+    fn parses_battery_health_values() {
+        let (level, status, temperature) = parse_battery_health("  level: 87\\n  status: 2\\n  temperature: 335");
+        assert_eq!(level, Some(87));
+        assert_eq!(status.as_deref(), Some("Charging"));
+        assert_eq!(temperature, Some(33.5));
+    }
+
+    #[test]
+    fn parses_storage_health_values() {
+        let (total, free) = parse_storage_health("Filesystem 1K-blocks Used Available Use% Mounted on\\n/dev/block/dm-1 104857600 52428800 52428800 50% /data");
+        assert_eq!(total, Some(100.0));
+        assert_eq!(free, Some(50.0));
+    }
 }
