@@ -1,47 +1,47 @@
 # MIFASK Android Cleaner
 
-Windows desktop Android device inspection and package-management utility.
+A multi-client Android device management project: Windows desktop application, browser dashboard, and a local ADB companion agent.
 
-## Stack
-- Tauri 2 + Rust
-- React + TypeScript + Vite
-- Android Debug Bridge (ADB)
-- Local-first; SQLite-backed history planned
+## Editions
 
-## Current implementation
-- Dark navy and cyan visual identity with light/dark theme toggle
+### Web dashboard (MVP)
+- Responsive React + TypeScript + Vite interface
+- Device connection overview, read-only ADB device list, safety status, light/dark theme
+- Connects to the local Windows agent; a hosted website cannot directly access USB/ADB
+
+Start the local agent in PowerShell:
+    cd apps/agent
+    $env:MIFASK_WEB_ORIGIN="http://localhost:5173"
+    node .\server.mjs
+
+Start the web dashboard in another terminal:
+    cd apps/web
+    npm install
+    npm run dev
+
+Open http://localhost:5173 and paste the access token printed by the agent. See docs/WEB-EDITION.md.
+
+### Windows desktop foundation
+- Tauri 2 + Rust + React + TypeScript
 - ADB device detection through the Rust command layer
-- Device model, product, serial and connection state display
-- Safe-by-default: no package modifications are exposed in this foundation
+- Dark navy/cyan visual identity with light/dark theme
+- Safe-by-default: no package modifications exposed in the current foundation
 
-## Requirements
-- Windows 10/11
-- Node.js 22+
-- Rust stable with Windows build prerequisites
-- Android Platform Tools (`adb`) available on PATH, or `MIFASK_ADB_PATH` set to `adb.exe`
+Requirements: Windows 10/11, Node.js 22+, Rust stable with Windows build prerequisites, and Android Platform Tools (ADB).
 
-## Development
-```powershell
-npm install
-npm run tauri dev
-```
+Development:
+    npm install
+    npm run tauri dev
 
-## Checks
-```powershell
-npm run build
-cargo test --manifest-path src-tauri/Cargo.toml
-```
+## Safety and scope
+The web agent binds to 127.0.0.1, requires a bearer token, allows one explicitly configured browser origin, and exposes only read-only device discovery. Do not expose its port publicly. Package inventory, risk classification, backup/restore, and package changes are not implemented in the web MVP. Future write operations must require per-action confirmation, strict allowlists, critical-package safeguards, and audit logging.
 
-## Android connection
-1. Enable Developer options and USB debugging on the phone.
-2. Connect by USB and approve the computer's debugging authorisation prompt.
-3. Run **Scan devices**.
-4. Devices marked `unauthorized` need approval; `offline` devices need connection troubleshooting.
+The desktop foundation currently detects devices only. Do not treat either edition as a complete package cleaner until package inventory and safe package workflows have been implemented and tested.
 
-## Safety
-This initial release only detects devices. It does not disable, uninstall, or alter Android packages. Future package operations must require device-specific verification, explicit confirmation, a recoverable prior-state record, and post-operation validation.
-
-## Windows build
-The `Windows release build` GitHub Actions workflow produces NSIS/MSI bundles and uploads them as workflow artifacts. Run it manually from Actions or push a `v*` tag.
+## Project structure
+- apps/web — browser dashboard
+- apps/agent — local Windows ADB bridge
+- src and src-tauri — Windows desktop application
+- docs — architecture and implementation notes
 
 Copyright (c) MIFASK. See LICENSE.
