@@ -82,6 +82,28 @@ function App() {
     ? Math.round(((userApps.length - appsWithoutInstaller.length) / userApps.length) * 100)
     : 0;
 
+  const exportInventoryReport = useCallback(() => {
+    if (!inventory) return;
+    const rows = [
+      ['Package name', 'Category', 'APK path', 'Installer', 'Version code'],
+      ...inventory.apps.map(app => [
+        app.packageName, app.category, app.apkPath ?? '', app.installer ?? '', app.versionCode ?? ''
+      ])
+    ];
+    const csv = rows.map(row => row.map(value =>
+      `"${String(value).replace(/"/g, '""')}"`
+    ).join(',')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `mifask-app-inventory-${inventory.deviceSerial.replace(/[^a-zA-Z0-9_-]/g, '_')}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }, [inventory]);
+
   return (
     <div className="app-shell" data-theme={theme}>
       <aside className="sidebar">
@@ -172,9 +194,12 @@ function App() {
             <div className="safety-centre">
               <div className="section-row">
                 <div><h2>Application Intelligence &amp; Safety Centre</h2><p>Evidence-based visibility into installed packages. No automatic blocking, disabling or removal.</p></div>
-                <button className="primary-button" onClick={() => void loadApps()} disabled={appsBusy || connected.length === 0}>
-                  <RefreshCw size={15} className={appsBusy ? 'spin' : ''} />{appsBusy ? 'Reviewing…' : 'Refresh analysis'}
-                </button>
+                <div className="inventory-actions">
+                  <button className="subtle-button" onClick={exportInventoryReport} disabled={!inventory}>Export CSV report</button>
+                  <button className="primary-button" onClick={() => void loadApps()} disabled={appsBusy || connected.length === 0}>
+                    <RefreshCw size={15} className={appsBusy ? 'spin' : ''} />{appsBusy ? 'Reviewing…' : 'Refresh analysis'}
+                  </button>
+                </div>
               </div>
               {!inventory ? (
                 <div className="empty-state"><div className="empty-icon"><ShieldCheck size={25}/></div><h3>Scan installed apps to begin</h3><p>The centre needs a current read-only inventory before it can explain package categories and installer metadata.</p></div>
