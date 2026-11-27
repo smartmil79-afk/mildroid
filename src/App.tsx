@@ -5,7 +5,7 @@ import {
   ListChecks, Moon, RefreshCw, Settings, ShieldCheck, Smartphone, Sun,
   Usb, CircleHelp, CheckCircle2, History, Download, Trash2, FileJson, Upload
 } from 'lucide-react';
-import { scanDevices, scanInstalledApps, scanDeviceHealth, configureAdbPath } from './services/deviceService';
+import { scanDevices, scanInstalledApps, scanDeviceHealth, configureAdbPath, openAndroidAppSettings } from './services/deviceService';
 import type { AndroidDevice, DeviceScan, AppInventory, DeviceHealth } from './types';
 import { classifyInstalledApps } from './services/debloatService';
 import type { DebloatRecommendation } from './services/debloatService';
@@ -47,6 +47,7 @@ function App() {
   const [appsBusy, setAppsBusy] = useState(false);
   const [appFilter, setAppFilter] = useState<'all' | 'user' | 'system' | 'unknown'>('all');
   const [appSearch, setAppSearch] = useState('');
+  const [appSettingsMessage, setAppSettingsMessage] = useState('');
   const [selectedSerial, setSelectedSerial] = useState('');
   const [health, setHealth] = useState<DeviceHealth | null>(null);
   const [healthBusy, setHealthBusy] = useState(false);
@@ -398,16 +399,16 @@ function App() {
                   </div>
                   <div className="inventory-table-wrap">
                     <table className="inventory-table">
-                      <thead><tr><th>Package</th><th>Category</th><th>Version code</th><th>Installer</th></tr></thead>
+                      <thead><tr><th>Package</th><th>Category</th><th>Version code</th><th>Installer</th><th>Review</th></tr></thead>
                       <tbody>{visibleApps.map(app => <tr key={app.packageName}>
                         <td><b>{app.packageName}</b><small>{app.apkPath ?? 'APK path not reported'}</small></td>
                         <td><span className={`category-tag ${app.category}`}>{app.category}</span></td>
-                        <td>{app.versionCode ?? '—'}</td><td>{app.installer ?? 'Unknown'}</td>
+                        <td>{app.versionCode ?? '—'}</td><td>{app.installer ?? 'Unknown'}</td><td><button className="subtle-button" onClick={async () => { try { const message = await openAndroidAppSettings(selectedDevice!.serial, app.packageName); setAppSettingsMessage(message); recordActivity('Opened Android app settings', app.packageName, 'info'); } catch (e) { setAppSettingsMessage(String(e)); } }}>Open settings</button></td>
                       </tr>)}</tbody>
                     </table>
                     {visibleApps.length === 0 && <p className="inventory-empty">No packages match this search and filter.</p>}
                   </div>
-                  <p className="inventory-footnote">Classification is based on the reported APK path, not a safety verdict. This screen does not disable, uninstall or modify apps.</p>
+                  {appSettingsMessage && <p className="backup-feedback" role="status">{appSettingsMessage}</p>}<p className="inventory-footnote">Classification is based on the reported APK path, not a safety verdict. This screen does not disable, uninstall or modify apps.</p>
                 </>
               )}
             </div>
