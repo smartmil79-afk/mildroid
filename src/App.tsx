@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { scanDevices, scanInstalledApps, scanDeviceHealth, configureAdbPath } from './services/deviceService';
 import type { AndroidDevice, DeviceScan, AppInventory, DeviceHealth } from './types';
+import { classifyInstalledApps } from './services/debloatService';
+import type { DebloatRecommendation } from './services/debloatService';
 
 type Theme = 'dark' | 'light';
 type ActivityEntry = { id: string; timestamp: number; action: string; detail: string; status: 'success' | 'warning' | 'info' };
@@ -36,6 +38,11 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [inventory, setInventory] = useState<AppInventory | null>(null);
+  const [debloatResults, setDebloatResults] = useState<DebloatRecommendation[]>([]);
+  const [debloatDatabaseSource, setDebloatDatabaseSource] = useState<'online' | 'cache' | null>(null);
+  const [debloatDatabaseSize, setDebloatDatabaseSize] = useState(0);
+  const [debloatMessage, setDebloatMessage] = useState('');
+  const [debloatFilter, setDebloatFilter] = useState<'all' | 'Recommended' | 'Advanced' | 'Expert' | 'protected'>('all');
   const [appsBusy, setAppsBusy] = useState(false);
   const [appFilter, setAppFilter] = useState<'all' | 'user' | 'system' | 'unknown'>('all');
   const [appSearch, setAppSearch] = useState('');
@@ -170,12 +177,31 @@ function App() {
     const target = selectedDevice;
     if (!target) { setError('Connect and authorise an Android device before scanning its apps.'); return; }
     setAppsBusy(true); setError('');
-    try { const result = await scanInstalledApps(target.serial); setInventory(result); recordActivity('App inventory scan', `${result.apps.length} package(s) inspected on ${target.model || 'Android device'}`); }
+    try {
+      const result = await scanInstalledApps(target.serial);
+      setInventory(result);
+      recordActivity('App inventory scan', `${result.apps.length} package(s) inspected on ${target.model || 'Android device'}`);
+      setDebloatMessage('');
+      try {
+        const analysis = await classifyInstalledApps(result.apps);
+        setDebloatResults(analysis.recommendations);
+        setDebloatDatabaseSource(analysis.databaseSource);
+        setDebloatDatabaseSize(analysis.databaseSize);
+        recordActivity('Debloat analysis', `${analysis.recommendations.filter(item => item.source === 'UAD-ng').length} packages matched against UAD-ng`);
+      } catch (analysisError) {
+        setDebloatResults([]);
+        setDebloatDatabaseSource(null);
+        setDebloatMessage(`The installed-app scan succeeded, but the UAD-ng database could not be loaded. No bloatware ratings are being inferred. ${String(analysisError)}`);
+      }
+    }
     catch (e) { setError(`App inventory failed: ${String(e)}`); }
     finally { setAppsBusy(false); }
   }, [selectedDevice, recordActivity]);
 
   const allApps = inventory?.apps ?? [];
+  const matchedDebloat = debloatResults.filter(item => item.source === 'UAD-ng');
+  const debloatCounts = { Recommended: matchedDebloat.filter(item => item.removal === 'Recommended' && item.status === 'review').length, Advanced: matchedDebloat.filter(item => item.removal === 'Advanced' && item.status === 'review').length, Expert: matchedDebloat.filter(item => item.removal === 'Expert' && item.status === 'review').length, protected: matchedDebloat.filter(item => item.status === 'protected').length };
+  const visibleDebloat = matchedDebloat.filter(item => debloatFilter === 'protected' ? item.status === 'protected' : debloatFilter === 'all' || (item.removal === debloatFilter && item.status === 'review'));
   const visibleApps = allApps.filter((app) =>
     (appFilter === 'all' || app.category === appFilter) &&
     app.packageName.toLowerCase().includes(appSearch.toLowerCase())
