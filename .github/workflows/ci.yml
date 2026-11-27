@@ -15,6 +15,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: npm install --no-audit --no-fund
       - run: npm run build
+      - run: npm test
       - run: cargo test --manifest-path src-tauri/Cargo.toml
       - name: Generate Tauri platform icons
         run: npm run tauri -- icon src-tauri/icons/icon.svg --output src-tauri/icons
