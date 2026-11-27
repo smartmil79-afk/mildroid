@@ -442,6 +442,31 @@ function App() {
                     )}
                     <div className="finding-row"><span className="finding-dot info" /><div><b>{systemApps.length} system-category packages</b><p>These are located outside the standard user-app directory. System status alone does not indicate whether a package is safe or needed.</p></div></div>
                   </div>
+                  <div className="uad-panel">
+                    <div className="section-row"><div><h3>UAD-ng community package intelligence</h3><p>Installed packages matched case-insensitively against the Universal Android Debloater Next Generation list.</p></div>
+                      <span className={`uad-source ${debloatDatabaseSource === "online" ? "online" : "cached"}`}>{debloatDatabaseSource === "online" ? "Live database" : debloatDatabaseSource === "cache" ? "Cached database" : "Database unavailable"}</span></div>
+                    {debloatMessage && <div className="backup-feedback" role="status">{debloatMessage}</div>}
+                    {debloatDatabaseSource && <>
+                      <div className="uad-summary"><div><small>Database entries</small><b>{debloatDatabaseSize.toLocaleString()}</b></div><div><small>Matched packages</small><b>{matchedDebloat.length}</b></div><div><small>Recommended</small><b>{debloatCounts.Recommended}</b></div><div><small>Dependency / unsafe holds</small><b>{debloatCounts.protected}</b></div></div>
+                      <div className="uad-filters">
+                        <button className={debloatFilter === "all" ? "selected" : ""} onClick={() => setDebloatFilter("all")}>All matched ({matchedDebloat.length})</button>
+                        <button className={debloatFilter === "Recommended" ? "selected" : ""} onClick={() => setDebloatFilter("Recommended")}>Recommended ({debloatCounts.Recommended})</button>
+                        <button className={debloatFilter === "Advanced" ? "selected" : ""} onClick={() => setDebloatFilter("Advanced")}>Advanced ({debloatCounts.Advanced})</button>
+                        <button className={debloatFilter === "Expert" ? "selected" : ""} onClick={() => setDebloatFilter("Expert")}>Expert ({debloatCounts.Expert})</button>
+                        <button className={debloatFilter === "protected" ? "selected" : ""} onClick={() => setDebloatFilter("protected")}>Protected / hold ({debloatCounts.protected})</button>
+                      </div>
+                      {visibleDebloat.length === 0 ? <p className="inventory-footnote">No packages in this category matched your installed inventory.</p> : <div className="uad-list">
+                        {visibleDebloat.slice(0, 80).map(item => <article className="uad-row" key={item.packageName}>
+                          <div className="uad-row-head"><b>{item.packageName}</b><span className={`uad-risk ${item.status === "protected" ? "protected" : item.removal.toLowerCase()}`}>{item.status === "protected" ? "Protected / dependency hold" : item.removal}</span></div>
+                          <p>{item.description}</p><small>List: {item.list} · Source: UAD-ng community database</small>
+                          {item.dependencyWarnings.length > 0 && <div className="uad-warning">{item.dependencyWarnings.join("; ")}</div>}
+                          {item.status === "review" && <div className="uad-warning">Review only. This classification is not an instruction to remove the package. MIFASK has not changed your phone.</div>}
+                        </article>)}
+                        {visibleDebloat.length > 80 && <p className="inventory-footnote">Showing 80 of {visibleDebloat.length} matched packages.</p>}
+                      </div>}
+                    </>}
+                    <p className="inventory-footnote">Source: UAD-ng. Package matching and dependency checks run locally after downloading the public list. Your installed-app inventory is not uploaded. Unsafe and dependency-linked entries are held from recommendations. No package operation is available in this phase.</p>
+                  </div>
                   <div className="debloat-review">
                     <div className="section-row"><div><h3>Safe debloat review queue</h3><p>Review user-installed packages individually. MIFASK does not uninstall, disable or alter apps.</p></div><span className="review-count">{userApps.length - reviewedPackages.filter(name => userApps.some(app => app.packageName === name)).length} to review</span></div>
                     {userApps.length === 0 ? <p className="inventory-footnote">Run an app inventory scan to create a review queue.</p> : <div className="review-app-list">
