@@ -463,7 +463,7 @@ function App() {
                       {visibleDebloat.length === 0 ? <p className="inventory-footnote">No packages in this category matched your installed inventory.</p> : <div className="uad-list">
                         {visibleDebloat.slice(0, 80).map(item => <article className="uad-row" key={item.packageName}>
                           <div className="uad-row-head"><b>{item.packageName}</b><span className={`uad-risk ${item.status === "protected" ? "protected" : item.removal.toLowerCase()}`}>{item.status === "protected" ? "Protected / dependency hold" : item.removal}</span></div>
-                          <p>{item.description}</p><small>List: {item.list} · Source: UAD-ng community database</small>
+                          <p>{item.description}</p><small>List: {item.list} · Source: {item.source}</small>
                           {item.dependencyWarnings.length > 0 && <div className="uad-warning">{item.dependencyWarnings.join("; ")}</div>}
                           {item.status === "review" && <div className="uad-warning">Review only. This classification is not an instruction to remove the package. MIFASK has not changed your phone.</div>}
                         </article>)}
