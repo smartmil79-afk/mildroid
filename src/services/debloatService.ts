@@ -31,7 +31,7 @@ export function isValidUadDatabase(value: unknown): value is UadDatabase {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const entries = Object.entries(value as Record<string, unknown>);
   return entries.length > 0 && entries.every(([name, item]) =>
-    /^[a-zA-Z0-9_]+(?:\\.[a-zA-Z0-9_]+)+$/.test(name) &&
+    /^[a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)+$/.test(name) &&
     !!item && typeof item === 'object' && !Array.isArray(item) &&
     typeof (item as UadPackage).description === 'string' &&
     typeof (item as UadPackage).removal === 'string' &&
