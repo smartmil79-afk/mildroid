@@ -1,6 +1,6 @@
 mod adb;
 
-use adb::{get_device_health, list_devices, list_installed_apps, set_adb_path, AppInventory, DeviceHealth, DeviceScan};
+use adb::{get_device_health, list_devices, list_installed_apps, open_app_settings, set_adb_path, AppInventory, DeviceHealth, DeviceScan};
 
 #[tauri::command]
 fn configure_adb_path(path: Option<String>) -> Result<String, String> {
@@ -18,6 +18,11 @@ fn list_installed_android_apps(serial: String) -> Result<AppInventory, String> {
 }
 
 #[tauri::command]
+fn open_android_app_settings(serial: String, package_name: String) -> Result<String, String> {
+    open_app_settings(&serial, &package_name)
+}
+
+#[tauri::command]
 fn get_android_device_health(serial: String) -> Result<DeviceHealth, String> {
     get_device_health(&serial)
 }
@@ -29,7 +34,8 @@ pub fn run() {
             configure_adb_path,
             list_android_devices,
             list_installed_android_apps,
-            get_android_device_health
+            get_android_device_health,
+            open_android_app_settings
         ])
         .run(tauri::generate_context!())
         .expect("error while running MIFASK Android Cleaner");
