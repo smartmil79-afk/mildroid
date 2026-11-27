@@ -42,7 +42,8 @@ function App() {
   const [debloatDatabaseSource, setDebloatDatabaseSource] = useState<'online' | 'cache' | null>(null);
   const [debloatDatabaseSize, setDebloatDatabaseSize] = useState(0);
   const [debloatMessage, setDebloatMessage] = useState('');
-  const [debloatFilter, setDebloatFilter] = useState<'all' | 'Recommended' | 'Advanced' | 'Expert' | 'protected'>('all');
+  const [debloatFilter, setDebloatFilter] = useState<'all' | 'Recommended' | 'Advanced' | 'Expert' | 'protected' | 'unlisted'>('all');
+  const [debloatSearch, setDebloatSearch] = useState('');
   const [appsBusy, setAppsBusy] = useState(false);
   const [appFilter, setAppFilter] = useState<'all' | 'user' | 'system' | 'unknown'>('all');
   const [appSearch, setAppSearch] = useState('');
@@ -201,7 +202,11 @@ function App() {
   const allApps = inventory?.apps ?? [];
   const matchedDebloat = debloatResults.filter(item => item.source === 'UAD-ng');
   const debloatCounts = { Recommended: matchedDebloat.filter(item => item.removal === 'Recommended' && item.status === 'review').length, Advanced: matchedDebloat.filter(item => item.removal === 'Advanced' && item.status === 'review').length, Expert: matchedDebloat.filter(item => item.removal === 'Expert' && item.status === 'review').length, protected: matchedDebloat.filter(item => item.status === 'protected').length };
-  const visibleDebloat = matchedDebloat.filter(item => debloatFilter === 'protected' ? item.status === 'protected' : debloatFilter === 'all' || (item.removal === debloatFilter && item.status === 'review'));
+  const visibleDebloat = debloatResults.filter(item => {
+    const matchesSearch = item.packageName.toLowerCase().includes(debloatSearch.toLowerCase()) || item.description.toLowerCase().includes(debloatSearch.toLowerCase());
+    const matchesFilter = debloatFilter === 'all' || (debloatFilter === 'protected' ? item.status === 'protected' : debloatFilter === 'unlisted' ? item.status === 'unlisted' : item.removal === debloatFilter && item.status === 'review');
+    return matchesSearch && matchesFilter;
+  });
   const visibleApps = allApps.filter((app) =>
     (appFilter === 'all' || app.category === appFilter) &&
     app.packageName.toLowerCase().includes(appSearch.toLowerCase())
@@ -453,7 +458,7 @@ function App() {
                         <button className={debloatFilter === "Recommended" ? "selected" : ""} onClick={() => setDebloatFilter("Recommended")}>Recommended ({debloatCounts.Recommended})</button>
                         <button className={debloatFilter === "Advanced" ? "selected" : ""} onClick={() => setDebloatFilter("Advanced")}>Advanced ({debloatCounts.Advanced})</button>
                         <button className={debloatFilter === "Expert" ? "selected" : ""} onClick={() => setDebloatFilter("Expert")}>Expert ({debloatCounts.Expert})</button>
-                        <button className={debloatFilter === "protected" ? "selected" : ""} onClick={() => setDebloatFilter("protected")}>Protected / hold ({debloatCounts.protected})</button>
+                        <button className={debloatFilter === "protected" ? "selected" : ""} onClick={() => setDebloatFilter("protected")}>Protected / hold ({debloatCounts.protected})</button>\n                        <button className={debloatFilter === "unlisted" ? "selected" : ""} onClick={() => setDebloatFilter("unlisted")}>Unlisted ({debloatResults.filter(item => item.status === "unlisted").length})</button>
                       </div>
                       {visibleDebloat.length === 0 ? <p className="inventory-footnote">No packages in this category matched your installed inventory.</p> : <div className="uad-list">
                         {visibleDebloat.slice(0, 80).map(item => <article className="uad-row" key={item.packageName}>
@@ -462,7 +467,7 @@ function App() {
                           {item.dependencyWarnings.length > 0 && <div className="uad-warning">{item.dependencyWarnings.join("; ")}</div>}
                           {item.status === "review" && <div className="uad-warning">Review only. This classification is not an instruction to remove the package. MIFASK has not changed your phone.</div>}
                         </article>)}
-                        {visibleDebloat.length > 80 && <p className="inventory-footnote">Showing 80 of {visibleDebloat.length} matched packages.</p>}
+                        {visibleDebloat.length > 80 && <p className="inventory-footnote">Showing 80 of {visibleDebloat.length} packages.</p>}
                       </div>}
                     </>}
                     <p className="inventory-footnote">Source: UAD-ng. Package matching and dependency checks run locally after downloading the public list. Your installed-app inventory is not uploaded. Unsafe and dependency-linked entries are held from recommendations. No package operation is available in this phase.</p>
