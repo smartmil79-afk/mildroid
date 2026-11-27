@@ -45,13 +45,18 @@ pub struct DeviceHealth {
     pub device_serial: String,
     pub manufacturer: Option<String>,
     pub model: Option<String>,
+    pub device_codename: Option<String>,
     pub android_version: Option<String>,
+    pub android_sdk: Option<String>,
+    pub one_ui_version: Option<String>,
     pub security_patch: Option<String>,
     pub battery_level: Option<u8>,
     pub battery_status: Option<String>,
     pub battery_temperature_c: Option<f32>,
     pub storage_total_gb: Option<f32>,
+    pub storage_used_gb: Option<f32>,
     pub storage_free_gb: Option<f32>,
+    pub storage_used_percent: Option<f32>,
     pub scanned_at: String,
 }
 
@@ -61,17 +66,20 @@ pub fn get_device_health(serial: &str) -> Result<DeviceHealth, String> {
     }
     let manufacturer = adb_for(serial, &["getprop", "ro.product.manufacturer"]).ok().map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
     let model = adb_for(serial, &["getprop", "ro.product.model"]).ok().map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
+    let device_codename = adb_for(serial, &["getprop", "ro.product.device"]).ok().map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
     let android_version = adb_for(serial, &["getprop", "ro.build.version.release"]).ok().map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
+    let android_sdk = adb_for(serial, &["getprop", "ro.build.version.sdk"]).ok().map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
+    let one_ui_version = adb_for(serial, &["getprop", "ro.build.version.oneui"]).ok().map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
     let security_patch = adb_for(serial, &["getprop", "ro.build.version.security_patch"]).ok().map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
     let battery = adb_for(serial, &["dumpsys", "battery"]).unwrap_or_default();
     let (battery_level, battery_status, battery_temperature_c) = parse_battery_health(&battery);
     let storage = adb_for(serial, &["df", "-k", "/data"]).unwrap_or_default();
-    let (storage_total_gb, storage_free_gb) = parse_storage_health(&storage);
+    let (storage_total_gb, storage_used_gb, storage_free_gb, storage_used_percent) = parse_storage_health(&storage);
     Ok(DeviceHealth {
         device_serial: serial.to_string(),
-        manufacturer, model, android_version, security_patch,
+        manufacturer, model, device_codename, android_version, android_sdk, one_ui_version, security_patch,
         battery_level, battery_status, battery_temperature_c,
-        storage_total_gb, storage_free_gb,
+        storage_total_gb, storage_used_gb, storage_free_gb, storage_used_percent,
         scanned_at: chrono_free_timestamp(),
     })
 }
@@ -97,23 +105,23 @@ fn parse_battery_health(output: &str) -> (Option<u8>, Option<String>, Option<f32
     (level, status, temperature)
 }
 
-fn parse_storage_health(output: &str) -> (Option<f32>, Option<f32>) {
-    // Prefer the /data row when Android emits multiple mount entries.
+fn parse_storage_health(output: &str) -> (Option<f32>, Option<f32>, Option<f32>, Option<f32>) {
     let line = output.lines()
         .filter(|line| !line.trim().is_empty())
         .filter(|line| !line.to_ascii_lowercase().contains("filesystem"))
         .last();
-    let Some(line) = line else { return (None, None) };
+    let Some(line) = line else { return (None, None, None, None) };
     let fields = line.split_whitespace().collect::<Vec<_>>();
-    if fields.len() < 4 { return (None, None); }
-    // df -k reports 1K blocks: total is column 1, available is column 3.
-    let (Ok(total_kib), Ok(available_kib)) =
-        (fields[1].parse::<f64>(), fields[3].parse::<f64>())
-    else { return (None, None) };
-    (
-        Some((total_kib / 1_048_576.0) as f32),
-        Some((available_kib / 1_048_576.0) as f32),
-    )
+    if fields.len() < 4 { return (None, None, None, None); }
+    let (Ok(total_kib), Ok(used_kib), Ok(available_kib)) =
+        (fields[1].parse::<f64>(), fields[2].parse::<f64>(), fields[3].parse::<f64>())
+    else { return (None, None, None, None); };
+    if total_kib <= 0.0 { return (None, None, None, None); }
+    let total = total_kib / 1_048_576.0;
+    let used = used_kib / 1_048_576.0;
+    let free = available_kib / 1_048_576.0;
+    let percent = (used_kib / total_kib * 100.0) as f32;
+    (Some(total as f32), Some(used as f32), Some(free as f32), Some(percent.clamp(0.0, 100.0)))
 }
 
 static ADB_PATH_OVERRIDE: std::sync::OnceLock<std::sync::Mutex<Option<String>>> = std::sync::OnceLock::new();
@@ -338,8 +346,10 @@ mod tests {
 
     #[test]
     fn parses_storage_health_values() {
-        let (total, free) = parse_storage_health("Filesystem 1K-blocks Used Available Use% Mounted on\n/dev/block/dm-1 104857600 52428800 52428800 50% /data");
+        let (total, used, free, percent) = parse_storage_health("Filesystem 1K-blocks Used Available Use% Mounted on\n/dev/block/dm-1 104857600 52428800 52428800 50% /data");
         assert_eq!(total, Some(100.0));
+        assert_eq!(used, Some(50.0));
         assert_eq!(free, Some(50.0));
+        assert_eq!(percent, Some(50.0));
     }
 }
