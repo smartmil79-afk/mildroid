@@ -31,12 +31,17 @@ export type DeviceHealth = {
   deviceSerial: string;
   manufacturer?: string;
   model?: string;
+  deviceCodename?: string;
   androidVersion?: string;
+  androidSdk?: string;
+  oneUiVersion?: string;
   securityPatch?: string;
   batteryLevel?: number;
   batteryStatus?: string;
   batteryTemperatureC?: number;
   storageTotalGb?: number;
+  storageUsedGb?: number;
   storageFreeGb?: number;
+  storageUsedPercent?: number;
   scannedAt: string;
 };
