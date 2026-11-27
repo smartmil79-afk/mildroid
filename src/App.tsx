@@ -186,6 +186,7 @@ function App() {
     try {
       const result = await scanInstalledApps(target.serial);
       setInventory(result);
+      try { setHealth(await scanDeviceHealth(target.serial)); } catch { setHealth(null); }
       recordActivity('App inventory scan', `${result.apps.length} package(s) inspected on ${target.model || 'Android device'}`);
       setDebloatMessage('');
       try {
@@ -437,6 +438,15 @@ function App() {
                     <div className="safety-explainer-icon"><ShieldCheck size={20}/></div>
                     <div><b>How to interpret this review</b><p>System/user labels are based on Android's reported APK location. Missing installer information is a visibility gap, not proof that an app is unsafe. Review unfamiliar apps using the phone's own app settings and a trusted source before taking action.</p></div>
                   </div>
+                  {health?.manufacturer?.toLowerCase().includes('samsung') && (
+                    <div className="samsung-guidance">
+                      <div className="section-row"><div><h3>Samsung device profile</h3><p>{health.model || 'Samsung device'} · Android {health.androidVersion || 'unknown'}{health.oneUiVersion ? ` · One UI ${health.oneUiVersion}` : ''} · codename {health.deviceCodename || 'not reported'}</p></div><span className="review-count">Vendor package review</span></div>
+                      <p>Samsung vendor packages are identified from the installed package names. This is not a bloatware verdict: One UI, phone, security, update, account and connectivity components can depend on one another. MIFASK will not mark Samsung packages safe to remove based on their prefix.</p>
+                      <div className="samsung-package-count"><b>{allApps.filter(app => app.packageName.toLowerCase().startsWith('com.samsung.')).length}</b><span>packages with the com.samsung. prefix in this scan</span></div>
+                      <div className="samsung-package-list">{allApps.filter(app => app.packageName.toLowerCase().startsWith('com.samsung.')).slice(0, 40).map(app => <code key={app.packageName}>{app.packageName}</code>)}</div>
+                      <small>Package identity is based on this device's live inventory. The prefix alone does not establish whether a component is removable.</small>
+                    </div>
+                  )}
                   <div className="safety-findings">
                     <h3>Items worth checking</h3>
                     {appsWithoutInstaller.length === 0 ? (
