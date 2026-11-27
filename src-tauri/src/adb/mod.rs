@@ -184,6 +184,21 @@ fn adb_for(serial: &str, args: &[&str]) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
+pub fn open_app_settings(serial: &str, package_name: &str) -> Result<String, String> {
+    if serial.trim().is_empty() {
+        return Err("A connected device is required.".into());
+    }
+    let valid = package_name.split('.').count() >= 2
+        && package_name.split('.').all(|part| !part.is_empty()
+            && part.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'));
+    if !valid {
+        return Err("The Android package name is invalid.".into());
+    }
+    let uri = format!("package:{package_name}");
+    adb_for(serial, &["am", "start", "-a", "android.settings.APPLICATION_DETAILS_SETTINGS", "-d", &uri])?;
+    Ok(format!("Opened Android app settings for {package_name}. No app change was made."))
+}
+
 pub fn list_devices() -> DeviceScan {
     let output = match Command::new(adb_executable()).args(["devices", "-l"]).output() {
         Ok(output) => output,
