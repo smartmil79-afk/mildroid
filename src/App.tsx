@@ -152,12 +152,17 @@ function App() {
       ['Manufacturer', health.manufacturer ?? ''],
       ['Model', health.model ?? ''],
       ['Android version', health.androidVersion ?? ''],
+      ['Android SDK', health.androidSdk ?? ''],
+      ['One UI version', health.oneUiVersion ?? ''],
+      ['Device codename', health.deviceCodename ?? ''],
       ['Security patch', health.securityPatch ?? ''],
       ['Battery level (%)', health.batteryLevel ?? ''],
       ['Battery status', health.batteryStatus ?? ''],
       ['Battery temperature (C)', health.batteryTemperatureC ?? ''],
       ['Storage total (GB)', health.storageTotalGb ?? ''],
+      ['Storage used (GB)', health.storageUsedGb ?? ''],
       ['Storage free (GB)', health.storageFreeGb ?? ''],
+      ['Storage used (%)', health.storageUsedPercent ?? ''],
       ['Scanned at (Unix seconds)', health.scannedAt],
     ];
     const csv = rows.map(row => row.map(value =>
@@ -300,7 +305,7 @@ function App() {
                 <div className="health-empty"><Smartphone size={19}/><span>{selectedDevice ? 'Run diagnostics to inspect this device.' : 'Connect and authorise a phone to view device health.'}</span></div>
               ) : (
                 <>
-                  <div className="health-device-line"><b>{health.manufacturer || ''} {health.model || 'Android device'}</b><span>Android {health.androidVersion || 'Unknown'} · {health.deviceSerial}</span></div>
+                  <div className="health-device-line"><b>{health.manufacturer || ''} {health.model || 'Android device'}</b><span>Android {health.androidVersion || 'Unknown'}{health.oneUiVersion ? ` · One UI ${health.oneUiVersion}` : ''} · {health.deviceSerial}</span></div>
                   <div className="health-metrics">
                     <div><span className="health-icon"><Activity size={17}/></span><small>Battery level</small><strong>{health.batteryLevel == null ? '—' : `${health.batteryLevel}%`}</strong><em>{health.batteryStatus || 'Status unavailable'}</em></div>
                     <div><span className="health-icon"><Activity size={17}/></span><small>Battery temperature</small><strong>{health.batteryTemperatureC == null ? '—' : `${health.batteryTemperatureC.toFixed(1)}°C`}</strong><em>Device-reported reading</em></div>
@@ -309,8 +314,8 @@ function App() {
                   </div>
                   {health.storageTotalGb != null && health.storageFreeGb != null && health.storageTotalGb > 0 && (
                     <div className="storage-usage">
-                      <div><b>Storage usage</b><span>{Math.max(0, Math.min(100, ((health.storageTotalGb - health.storageFreeGb) / health.storageTotalGb) * 100)).toFixed(1)}% used</span></div>
-                      <div className="storage-track"><span style={{ width: `${Math.max(0, Math.min(100, ((health.storageTotalGb - health.storageFreeGb) / health.storageTotalGb) * 100))}%` }} /></div>
+                      <div><b>Storage usage</b><span>{(health.storageUsedPercent ?? ((health.storageTotalGb - health.storageFreeGb) / health.storageTotalGb) * 100).toFixed(1)}% used</span></div>
+                      <div className="storage-track"><span style={{ width: `${Math.max(0, Math.min(100, health.storageUsedPercent ?? ((health.storageTotalGb - health.storageFreeGb) / health.storageTotalGb) * 100))}%` }} /></div>
                     </div>
                   )}
                   <p className="health-footnote">Diagnostics are read-only. Battery temperature and storage figures are reported by Android and may vary by device. Last scan: {new Date(Number(health.scannedAt) * 1000).toLocaleString()}.</p>
