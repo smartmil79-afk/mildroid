@@ -17,3 +17,7 @@ export async function scanInstalledApps(serial: string): Promise<AppInventory> {
 export async function scanDeviceHealth(serial: string): Promise<DeviceHealth> {
   return invoke<DeviceHealth>('get_android_device_health', { serial });
 }
+
+export async function openAndroidAppSettings(serial: string, packageName: string): Promise<string> {
+  return invoke<string>('open_android_app_settings', { serial, packageName });
+}
